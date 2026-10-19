@@ -1,0 +1,21 @@
+# Kubernetes local configs & credentials
+*.kubeconfig
+kubeconfig*
+*.tmp
+*.log
+
+# Environment & local overrides
+.env
+*.local.yaml
+*.override.yaml
+
+# IDE & Editor files
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# Operating System files
+.DS_Store
+Thumbs.db

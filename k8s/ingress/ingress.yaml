@@ -1,0 +1,50 @@
+# =============================================================================
+# INGRESS — Ingress NGINX Gateway
+# =============================================================================
+# Enrutamiento Unificado de Tráfico HTTP para la Plataforma Visons S.A.C.
+# Namespace: visons-prod
+# Requisito Minikube: minikube addons enable ingress
+# =============================================================================
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: visons-ingress
+  namespace: visons-prod
+  annotations:
+    nginx.ingress.kubernetes.io/rewrite-target: /$2
+    nginx.ingress.kubernetes.io/ssl-redirect: "false"
+    nginx.ingress.kubernetes.io/proxy-body-size: "50m"
+    nginx.ingress.kubernetes.io/proxy-connect-timeout: "60"
+    nginx.ingress.kubernetes.io/proxy-read-timeout: "120"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: visons.local
+      http:
+        paths:
+          # Motor Analítico (Flask)
+          - path: /analytics(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend-analitico-service
+                port:
+                  number: 5000
+
+          # Motor Transaccional (Spring Boot WebFlux)
+          - path: /api(/|$)(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: backend-transaccional-service
+                port:
+                  number: 9090
+
+          # Frontend Web (React + Vite)
+          - path: /()(.*)
+            pathType: ImplementationSpecific
+            backend:
+              service:
+                name: frontend-web-service
+                port:
+                  number: 80

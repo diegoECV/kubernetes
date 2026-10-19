@@ -1,0 +1,33 @@
+# =============================================================================
+# SERVICEMONITOR — backend-transaccional (Spring Boot WebFlux - Java 25)
+# =============================================================================
+# Recolección automática de métricas Micrometer / Actuator en /actuator/prometheus
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-transaccional-monitor
+  namespace: visons-prod
+  labels:
+    app: backend-transaccional
+    monitoring: "enabled"
+spec:
+  selector:
+    matchLabels:
+      app: backend-transaccional
+  namespaceSelector:
+    matchNames:
+      - visons-prod
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - targetLabel: application
+          replacement: backend-transaccional

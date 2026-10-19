@@ -1,0 +1,47 @@
+# =============================================================================
+# HPA — HorizontalPodAutoscaler: backend-analitico
+# =============================================================================
+# Autoescalado horizontal para el motor analítico
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: backend-analitico-hpa
+  namespace: visons-prod
+  labels:
+    app: backend-analitico
+    app.kubernetes.io/part-of: "visons-platform"
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend-analitico
+  minReplicas: 1
+  maxReplicas: 5
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+  behavior:
+    scaleUp:
+      stabilizationWindowSeconds: 15
+      policies:
+        - type: Pods
+          value: 2
+          periodSeconds: 30
+    scaleDown:
+      stabilizationWindowSeconds: 180
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 60

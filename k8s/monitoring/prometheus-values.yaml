@@ -1,0 +1,104 @@
+# =============================================================================
+# VALORES DE HELM — kube-prometheus-stack (Visons S.A.C.)
+# =============================================================================
+# Despliegue de Observabilidad Completa:
+#   - Prometheus Operator + Prometheus Server
+#   - Grafana (Dashboards Ejecutivos y Operativos)
+#   - AlertManager (Gestión de Incidentes y Notificaciones)
+#   - Node Exporter & kube-state-metrics
+# =============================================================================
+
+prometheus:
+  prometheusSpec:
+    scrapeInterval: 15s
+    evaluationInterval: 15s
+
+    # Descubrimiento transversal de ServiceMonitors en cualquier namespace
+    serviceMonitorNamespaceSelector:
+      matchLabels: {}
+    serviceMonitorSelector:
+      matchLabels: {}
+    podMonitorNamespaceSelector:
+      matchLabels: {}
+
+    retention: 15d
+
+    resources:
+      requests:
+        cpu: 200m
+        memory: 512Mi
+      limits:
+        cpu: 800m
+        memory: 1200Mi
+
+    storageSpec:
+      volumeClaimTemplate:
+        spec:
+          storageClassName: standard
+          accessModes: ["ReadWriteOnce"]
+          resources:
+            requests:
+              storage: 5Gi
+
+grafana:
+  enabled: true
+  adminUser: admin
+  adminPassword: visons2026
+
+  service:
+    type: NodePort
+    nodePort: 30300
+
+  datasources:
+    datasources.yaml:
+      apiVersion: 1
+      datasources:
+        - name: Prometheus
+          type: prometheus
+          url: http://monitoring-kube-prometheus-prometheus:9090
+          isDefault: true
+          access: proxy
+
+  dashboardProviders:
+    dashboardproviders.yaml:
+      apiVersion: 1
+      providers:
+        - name: "visons"
+          orgId: 1
+          folder: "Visons S.A.C."
+          type: file
+          disableDeletion: false
+          editable: true
+          options:
+            path: /var/lib/grafana/dashboards/visons
+
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 400m
+      memory: 512Mi
+
+alertmanager:
+  enabled: true
+  alertmanagerSpec:
+    resources:
+      requests:
+        cpu: 50m
+        memory: 64Mi
+
+nodeExporter:
+  enabled: true
+
+kubeStateMetrics:
+  enabled: true
+
+kubeControllerManager:
+  enabled: false
+
+kubeScheduler:
+  enabled: false
+
+kubeEtcd:
+  enabled: false

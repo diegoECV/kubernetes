@@ -1,0 +1,25 @@
+# =============================================================================
+# SERVICE — backend-transaccional
+# =============================================================================
+# Exposición de red interna (ClusterIP) y externa (NodePort 30090)
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-transaccional-service
+  namespace: visons-prod
+  labels:
+    app: backend-transaccional
+    monitoring: "enabled"
+    app.kubernetes.io/part-of: "visons-platform"
+spec:
+  type: NodePort
+  selector:
+    app: backend-transaccional
+  ports:
+    - name: http
+      port: 9090
+      targetPort: 9090
+      nodePort: 30090
+      protocol: TCP

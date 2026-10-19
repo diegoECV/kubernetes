@@ -1,0 +1,20 @@
+# =============================================================================
+# NAMESPACE — visons-prod
+# =============================================================================
+# Arquitectura: Visons S.A.C. — Enterprise Platform
+# Los namespaces proporcionan aislamiento lógico de recursos, cuotas y políticas.
+#
+# ETIQUETA CRÍTICA:
+#   monitoring: "enabled"
+# Esta etiqueta le indica al Prometheus Operator (kube-prometheus-stack)
+# que debe descubrir e indexar los ServiceMonitors y PrometheusRules creados aquí.
+# =============================================================================
+apiVersion: v1
+kind: Namespace
+metadata:
+  name: visons-prod
+  labels:
+    name: visons-prod
+    monitoring: "enabled"
+    app.kubernetes.io/part-of: "visons-platform"
+    app.kubernetes.io/managed-by: "kubernetes"

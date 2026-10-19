@@ -1,0 +1,25 @@
+# =============================================================================
+# SERVICE — backend-analitico
+# =============================================================================
+# Exposición interna (ClusterIP) y externa (NodePort 30500)
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend-analitico-service
+  namespace: visons-prod
+  labels:
+    app: backend-analitico
+    monitoring: "enabled"
+    app.kubernetes.io/part-of: "visons-platform"
+spec:
+  type: NodePort
+  selector:
+    app: backend-analitico
+  ports:
+    - name: http
+      port: 5000
+      targetPort: 5000
+      nodePort: 30500
+      protocol: TCP

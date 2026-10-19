@@ -1,0 +1,77 @@
+# =============================================================================
+# DEPLOYMENT — backend-analitico
+# =============================================================================
+# Stack: Python 3.12 / Flask / Gunicorn / PyMongo / PyMSSQL
+# Puerto: 5000
+# Health Check: /health
+# Endpoints Analíticos: /api/v1/analytics/...
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-analitico
+  namespace: visons-prod
+  labels:
+    app: backend-analitico
+    component: api-analytics
+    version: "v1.0"
+    app.kubernetes.io/part-of: "visons-platform"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: backend-analitico
+  template:
+    metadata:
+      labels:
+        app: backend-analitico
+        component: api-analytics
+        version: "v1.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "5000"
+        prometheus.io/path: "/health"
+    spec:
+      containers:
+        - name: backend-analitico
+          image: diego5621/backend-analitico:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 5000
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: visons-config
+            - secretRef:
+                name: visons-secrets
+          livenessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 20
+            periodSeconds: 10
+            timeoutSeconds: 3
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /health
+              port: 5000
+            initialDelaySeconds: 15
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+          resources:
+            requests:
+              cpu: "100m"
+              memory: "128Mi"
+            limits:
+              cpu: "500m"
+              memory: "384Mi"

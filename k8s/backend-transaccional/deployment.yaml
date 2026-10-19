@@ -1,0 +1,79 @@
+# =============================================================================
+# DEPLOYMENT — backend-transaccional
+# =============================================================================
+# Stack: Spring Boot WebFlux 3.x / Java 25 (Arquitectura Reactiva No Bloqueante)
+# Puerto: 9090
+# Métricas: /actuator/prometheus
+# Health Check: /actuator/health
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend-transaccional
+  namespace: visons-prod
+  labels:
+    app: backend-transaccional
+    component: api-core
+    version: "v2.0"
+    app.kubernetes.io/part-of: "visons-platform"
+spec:
+  replicas: 1
+  revisionHistoryLimit: 5
+  strategy:
+    type: RollingUpdate
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 0
+  selector:
+    matchLabels:
+      app: backend-transaccional
+  template:
+    metadata:
+      labels:
+        app: backend-transaccional
+        component: api-core
+        version: "v2.0"
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "9090"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: backend-transaccional
+          image: diego5621/backend-transaccional:latest
+          imagePullPolicy: IfNotPresent
+          ports:
+            - containerPort: 9090
+              name: http
+              protocol: TCP
+          envFrom:
+            - configMapRef:
+                name: visons-config
+            - secretRef:
+                name: visons-secrets
+          # Sondas de Liveness y Readiness para alta disponibilidad
+          livenessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9090
+            initialDelaySeconds: 45
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health
+              port: 9090
+            initialDelaySeconds: 30
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          # Límites y reservas de recursos para autoscaling (HPA) y protección OOM
+          resources:
+            requests:
+              cpu: "200m"
+              memory: "384Mi"
+            limits:
+              cpu: "1000m"
+              memory: "768Mi"

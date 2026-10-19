@@ -1,0 +1,121 @@
+# =============================================================================
+# PROMETHEUSRULE — Reglas de Alerta Visons S.A.C.
+# =============================================================================
+# Evaluación continua de estado, fallas de SLA y límites de recursos
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: visons-alertas
+  namespace: visons-prod
+  labels:
+    app: visons-platform
+    monitoring: "enabled"
+    role: alert-rules
+spec:
+  groups:
+    # ── Grupo 1: Alertas de Microservicios Core ──────────────────────────────
+    - name: visons.microservicios.rules
+      interval: 15s
+      rules:
+        # Backend Transaccional Caído
+        - alert: BackendTransaccionalDown
+          expr: up{service=~".*backend-transaccional.*"} == 0
+          for: 30s
+          labels:
+            severity: critical
+            team: platform-core
+          annotations:
+            summary: "Backend Transaccional (Spring Boot) Fuera de Servicio"
+            description: "El servicio backend-transaccional no responde en /actuator/prometheus desde hace más de 30s. Investigar logs del pod."
+
+        # Backend Analítico Caído
+        - alert: BackendAnaliticoDown
+          expr: up{service=~".*backend-analitico.*"} == 0
+          for: 30s
+          labels:
+            severity: critical
+            team: analytics
+          annotations:
+            summary: "Backend Analítico (Flask) Fuera de Servicio"
+            description: "El endpoint de salud del backend analítico no responde. Revisar contenedor y conexión a MongoDB."
+
+        # Alta Tasa de Errores HTTP 5xx en Spring Boot
+        - alert: HighHttp5xxRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{status=~"5.."}[3m]))
+              /
+              sum(rate(http_server_requests_seconds_count[3m]))
+            ) > 0.05
+          for: 1m
+          labels:
+            severity: critical
+            team: platform-core
+          annotations:
+            summary: "Tasa de errores 5xx > 5% en Backend Transaccional"
+            description: "El sistema está respondiendo con fallas internas en más del 5% del tráfico en los últimos 3 minutos."
+
+        # Latencia Alta en Microservicios (Percentil 95 > 1.5s)
+        - alert: HighHttpLatencyP95
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket[3m])) by (le)
+            ) > 1.5
+          for: 2m
+          labels:
+            severity: warning
+            team: platform-core
+          annotations:
+            summary: "Latencia p95 degradada (> 1.5s)"
+            description: "El percentil 95 de respuestas excede 1.5 segundos. Verificar contención en bases de datos."
+
+    # ── Grupo 2: Alertas de Infraestructura y Clúster ─────────────────────────
+    - name: visons.infraestructura.rules
+      interval: 30s
+      rules:
+        # Pod en ciclo de muerte recurrente (CrashLoopBackOff)
+        - alert: PodCrashLoopBackOff
+          expr: |
+            kube_pod_container_status_waiting_reason{
+              reason="CrashLoopBackOff",
+              namespace="visons-prod"
+            } == 1
+          for: 1m
+          labels:
+            severity: critical
+            team: devops
+          annotations:
+            summary: "Pod en CrashLoopBackOff: {{ $labels.pod }}"
+            description: "El contenedor {{ $labels.container }} del pod {{ $labels.pod }} no puede iniciar. Ejecutar: kubectl logs {{ $labels.pod }} -n visons-prod --previous"
+
+        # Memoria del Pod > 85% del Límite Asignado
+        - alert: PodHighMemoryUsage
+          expr: |
+            (
+              container_memory_working_set_bytes{namespace="visons-prod", container!=""}
+              /
+              kube_pod_container_resource_limits{resource="memory", namespace="visons-prod"}
+            ) > 0.85
+          for: 2m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Uso de memoria crítico (>85%) en {{ $labels.pod }}"
+            description: "El pod {{ $labels.pod }} está cerca de su límite OOM (Out Of Memory). Riesgo inminente de OOMKilled."
+
+        # HPA al Máximo de Réplicas Permitidas
+        - alert: HpaAtMaxCapacity
+          expr: |
+            kube_horizontalpodautoscaler_status_current_replicas{namespace="visons-prod"}
+            >=
+            kube_horizontalpodautoscaler_spec_max_replicas{namespace="visons-prod"}
+          for: 3m
+          labels:
+            severity: warning
+            team: devops
+          annotations:
+            summary: "Autoscaler (HPA) saturado en {{ $labels.horizontalpodautoscaler }}"
+            description: "El HPA ha alcanzado el límite máximo de réplicas configurado (5 pods). Considerar aumentar el límite superior de réplicas."

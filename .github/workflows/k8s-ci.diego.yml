@@ -1,0 +1,89 @@
+name: Kubernetes CI - Diego (Manifests & Automation)
+
+on:
+  push:
+    branches:
+      - develop
+      - main
+      - master
+  pull_request:
+    branches:
+      - develop
+      - main
+      - master
+  workflow_dispatch:
+
+jobs:
+  validate-k8s:
+    name: Validate Kubernetes Manifests & Automation Scripts
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install pyyaml yamllint
+
+      - name: Validate YAML Syntax (PyYAML)
+        run: |
+          echo "=== Verifying YAML Syntax ==="
+          python -c '
+          import glob, yaml, sys
+          files = sorted(set(glob.glob("k8s/**/*.yaml", recursive=True) + glob.glob("k8s/*.yaml")))
+          errors = 0
+          for f in files:
+              try:
+                  with open(f, "r") as fp:
+                      list(yaml.safe_load_all(fp))
+                  print(f"✓ Valid YAML: {f}")
+              except Exception as e:
+                  print(f"✗ Error in {f}: {e}")
+                  errors += 1
+          if errors > 0:
+              sys.exit(1)
+          print(f"All {len(files)} YAML manifests are syntactically valid!")
+          '
+
+      - name: Validate JSON Dashboards
+        run: |
+          echo "=== Verifying JSON Files ==="
+          python -m json.tool k8s/monitoring/grafana-dashboard.json > /dev/null
+          echo "✓ Grafana Dashboard JSON is valid."
+
+      - name: Download & Run Kubeconform
+        run: |
+          echo "=== Running Kubeconform Schema Validation ==="
+          KUBECONFORM_VERSION="v0.6.7"
+          curl -sL "https://github.com/yannh/kubeconform/releases/download/${KUBECONFORM_VERSION}/kubeconform-linux-amd64.tar.gz" | tar xz
+          sudo mv kubeconform /usr/local/bin/
+          kubeconform -v
+          
+          # Validate base resources and microservices
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/00-namespace.yaml k8s/01-secrets.yaml k8s/02-configmaps.yaml
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/backend-transaccional/
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/backend-analitico/
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/frontend-web/
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/databases/
+          kubeconform -summary -ignore-missing-schemas -kubernetes-version 1.30.0 k8s/ingress/
+
+      - name: Validate Shell Scripts Syntax
+        run: |
+          echo "=== Verifying Shell Scripts (bash -n) ==="
+          for script in scripts/*.sh load-testing/*.sh; do
+            if [ -f "$script" ]; then
+              bash -n "$script"
+              echo "✓ $script syntax OK"
+            fi
+          done
+
+      - name: Verify Execution Permissions
+        run: |
+          echo "=== Checking Shell Script Permissions ==="
+          ls -la scripts/ load-testing/

@@ -1,0 +1,33 @@
+# =============================================================================
+# SERVICEMONITOR — backend-analitico (Flask Python 3.12)
+# =============================================================================
+# Monitoreo de disponibilidad y métricas del motor analítico
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: backend-analitico-monitor
+  namespace: visons-prod
+  labels:
+    app: backend-analitico
+    monitoring: "enabled"
+spec:
+  selector:
+    matchLabels:
+      app: backend-analitico
+  namespaceSelector:
+    matchNames:
+      - visons-prod
+  endpoints:
+    - port: http
+      path: /health
+      interval: 15s
+      scrapeTimeout: 10s
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - targetLabel: application
+          replacement: backend-analitico

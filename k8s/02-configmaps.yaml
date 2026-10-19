@@ -1,0 +1,38 @@
+# =============================================================================
+# CONFIGMAP — visons-config
+# =============================================================================
+# Variables de configuración desacopladas del código de los microservicios
+# Namespace: visons-prod
+# =============================================================================
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: visons-config
+  namespace: visons-prod
+  labels:
+    app.kubernetes.io/part-of: "visons-platform"
+data:
+  # Configuración Backend Transaccional (Spring Boot WebFlux - Java 25)
+  SERVER_PORT: "9090"
+  SPRING_R2DBC_URL: "r2dbc:sqlserver://visons-db.cjwoansjw85b.us-east-1.rds.amazonaws.com:1433;database=Visons;encrypt=true;trustServerCertificate=true"
+  SPRING_R2DBC_USERNAME: "sa"
+  FRONTEND_URL: "http://localhost:5173"
+  JWT_EXPIRATION_MS: "36000000"
+
+  # Exposición de Actuator y Métricas de Prometheus
+  MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
+  MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
+  MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED: "true"
+
+  # Configuración Backend Analítico (Flask Python 3.12)
+  FLASK_PORT: "5000"
+  FLASK_DEBUG: "False"
+  SQL_SERVER: "sqlserver-service"
+  SQL_PORT: "1433"
+  SQL_DATABASE: "Visons"
+  SQL_USER: "sa"
+  MONGO_DB_NAME: "Visons"
+
+  # Configuración Frontend Web (React + Vite)
+  VITE_API_URL: "http://localhost:9090/api"
+  VITE_ANALYTICS_URL: "http://localhost:5000/api/v1/analytics"
