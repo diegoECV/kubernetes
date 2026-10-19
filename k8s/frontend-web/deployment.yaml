@@ -34,7 +34,7 @@ spec:
     spec:
       containers:
         - name: frontend-web
-          image: diego5621/visons-frontend:latest
+          image: diego5621/frontend-web:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 80
