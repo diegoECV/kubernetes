@@ -39,6 +39,8 @@ spec:
         prometheus.io/port: "5000"
         prometheus.io/path: "/health"
     spec:
+      nodeSelector:
+        role: backend2
       containers:
         - name: backend-analitico
           image: diego5621/backend-analitico:latest

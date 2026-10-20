@@ -39,6 +39,8 @@ spec:
         prometheus.io/port: "9090"
         prometheus.io/path: "/actuator/prometheus"
     spec:
+      nodeSelector:
+        role: backend1
       containers:
         - name: backend-transaccional
           image: diego5621/backend-transaccional:latest

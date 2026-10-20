@@ -32,6 +32,8 @@ spec:
         component: ui-web
         version: "v1.0"
     spec:
+      nodeSelector:
+        role: frontend
       containers:
         - name: frontend-web
           image: diego5621/frontend-web:latest

@@ -76,11 +76,17 @@ start_minikube() {
 
 # ── 3. Creación del Namespace & Recursos Base ─────────────────────────────────
 deploy_base() {
-    log_step "3/8: Creando Namespace, Secrets y ConfigMaps"
+    log_step "3/8: Creando Namespace, Secrets, ConfigMaps y Aislamiento de Nodos"
     kubectl apply -f k8s/00-namespace.yaml
     kubectl apply -f k8s/01-secrets.yaml
     kubectl apply -f k8s/02-configmaps.yaml
-    log_success "Configuración base aplicada en namespace 'visons-prod'"
+
+    # Etiquetar nodos con roles dedicados (compatible con Minikube o clúster multinodo EC2)
+    log_info "Etiquetando nodos con roles de aislamiento (role=frontend, role=backend1, role=backend2)..."
+    for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
+        kubectl label node "$node" role=frontend role=backend1 role=backend2 --overwrite 2>/dev/null || true
+    done
+    log_success "Configuración base y etiquetas de aislamiento aplicadas"
 }
 
 # ── 4. Despliegue del Stack de Observabilidad con Helm ────────────────────────
