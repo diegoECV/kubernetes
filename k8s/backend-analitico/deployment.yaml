@@ -41,10 +41,18 @@ spec:
     spec:
       nodeSelector:
         role: backend2
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend2"
+          effect: "NoSchedule"
+        - key: "dedicated"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: backend-analitico
           image: diego5621/backend-analitico:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 5000
               name: http

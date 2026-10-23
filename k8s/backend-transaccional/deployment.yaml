@@ -41,10 +41,18 @@ spec:
     spec:
       nodeSelector:
         role: backend1
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "backend1"
+          effect: "NoSchedule"
+        - key: "dedicated"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: backend-transaccional
           image: diego5621/backend-transaccional:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 9090
               name: http

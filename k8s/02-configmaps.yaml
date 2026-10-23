@@ -34,5 +34,6 @@ data:
   MONGO_DB_NAME: "Visons"
 
   # Configuración Frontend Web (React + Vite)
-  VITE_API_URL: "http://localhost:9090/api"
-  VITE_ANALYTICS_URL: "http://localhost:5000/api/v1/analytics"
+  # NOTA: En Vite las variables VITE_* se inyectan en tiempo de compilación (npm run build).
+  # En producción con Nginx no se leen en runtime desde el ConfigMap.
+  # Se deben pasar como --build-arg en docker build (ej: http://<EIP>:30090/api/v1 y http://<EIP>:30500/api/v1/analytics).

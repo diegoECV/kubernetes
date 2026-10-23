@@ -61,11 +61,12 @@ start_minikube() {
     else
         log_info "Iniciando Minikube con 4 CPUs y 6GB de memoria..."
         minikube start \
+            --nodes=3 \
             --cpus=4 \
             --memory=6144 \
             --disk-size=25g \
             --driver=docker
-        log_success "Minikube iniciado exitosamente"
+        log_success "Minikube multinodo iniciado exitosamente"
     fi
 
     log_info "Habilitando complementos requeridos: metrics-server e ingress..."
@@ -81,11 +82,24 @@ deploy_base() {
     kubectl apply -f k8s/01-secrets.yaml
     kubectl apply -f k8s/02-configmaps.yaml
 
-    # Etiquetar nodos con roles dedicados (compatible con Minikube o clúster multinodo EC2)
-    log_info "Etiquetando nodos con roles de aislamiento (role=frontend, role=backend1, role=backend2)..."
-    for node in $(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'); do
-        kubectl label node "$node" role=frontend role=backend1 role=backend2 --overwrite 2>/dev/null || true
-    done
+    # Etiquetar nodos con roles dedicados (1 rol por nodo para aislamiento real)
+    log_info "Etiquetando nodos con roles de aislamiento (frontend, backend1, backend2)..."
+    local node_list=($(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'))
+    if [ ${#node_list[@]} -ge 3 ]; then
+        kubectl label node "${node_list[0]}" role=frontend --overwrite
+        kubectl label node "${node_list[1]}" role=backend1 --overwrite
+        kubectl label node "${node_list[2]}" role=backend2 --overwrite
+        log_success "Nodos etiquetados: ${node_list[0]}=frontend, ${node_list[1]}=backend1, ${node_list[2]}=backend2"
+    else
+        log_warn "Clúster con menos de 3 nodos detectados (${#node_list[@]}). Etiquetando nodos disponibles..."
+        for idx in "${!node_list[@]}"; do
+            case $idx in
+                0) kubectl label node "${node_list[$idx]}" role=frontend --overwrite ;;
+                1) kubectl label node "${node_list[$idx]}" role=backend1 --overwrite ;;
+                2) kubectl label node "${node_list[$idx]}" role=backend2 --overwrite ;;
+            esac
+        done
+    fi
     log_success "Configuración base y etiquetas de aislamiento aplicadas"
 }
 

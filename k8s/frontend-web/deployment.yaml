@@ -34,25 +34,22 @@ spec:
     spec:
       nodeSelector:
         role: frontend
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "frontend"
+          effect: "NoSchedule"
+        - key: "dedicated"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: frontend-web
           image: diego5621/frontend-web:latest
-          imagePullPolicy: IfNotPresent
+          imagePullPolicy: Always
           ports:
             - containerPort: 80
               name: http
               protocol: TCP
-          env:
-            - name: VITE_API_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: visons-config
-                  key: VITE_API_URL
-            - name: VITE_ANALYTICS_URL
-              valueFrom:
-                configMapKeyRef:
-                  name: visons-config
-                  key: VITE_ANALYTICS_URL
           livenessProbe:
             httpGet:
               path: /
