@@ -71,9 +71,13 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
   https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
   | tee /etc/apt/sources.list.d/docker.list > /dev/null
 apt-get update -y && apt-get install -y docker-ce docker-ce-cli containerd.io
-systemctl enable --now docker
+mkdir -p /etc/containerd
+containerd config default | tee /etc/containerd/config.toml > /dev/null
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+systemctl restart containerd
+systemctl enable --now docker containerd
 usermod -aG docker ubuntu
-log_ok "Docker instalado"
+log_ok "Docker y containerd configurados con SystemdCgroup"
 
 # ═══════════════════════════════════════════════════════
 # PASO 3 — Instalar kubelet + kubeadm
@@ -102,7 +106,7 @@ log_ok "kubelet + kubeadm v1.30 instalados"
 # PASO 4 — Unirse al clúster
 # ═══════════════════════════════════════════════════════
 log_step "4/4: Uniéndose al clúster como Worker (Backend Transaccional)"
-eval "$JOIN_CMD" --node-name="visons-worker-backend1"
+eval "$JOIN_CMD" --node-name="visons-worker-backend1" --ignore-preflight-errors=NumCPU,Mem
 log_ok "Nodo unido al clúster"
 
 echo ""

@@ -421,30 +421,30 @@ mode_2_orquestadores() {
     # Paso 1 — Aislamiento de nodos (Labels + Taints)
     log_step "Aislando nodos del clúster (Labels + Taints)"
 
-    WORKERS=($(kubectl get nodes --no-headers | grep -vE 'control-plane|master' | awk '{print $1}'))
-    TOTAL=${#WORKERS[@]}
-    log_info "Workers encontrados: $TOTAL"
-
-    if [ "$TOTAL" -ge 1 ]; then
-        kubectl label node "${WORKERS[0]}" role=frontend --overwrite 2>/dev/null || true
-        kubectl taint node "${WORKERS[0]}" dedicated=frontend:NoSchedule --overwrite 2>/dev/null || true
-        log_ok "Worker [${WORKERS[0]}] → role=frontend"
-    fi
-    if [ "$TOTAL" -ge 2 ]; then
-        kubectl label node "${WORKERS[1]}" role=backend1 --overwrite 2>/dev/null || true
-        kubectl taint node "${WORKERS[1]}" dedicated=backend1:NoSchedule --overwrite 2>/dev/null || true
-        log_ok "Worker [${WORKERS[1]}] → role=backend1 (Backend Transaccional)"
-    fi
-    if [ "$TOTAL" -ge 3 ]; then
-        kubectl label node "${WORKERS[2]}" role=backend2 --overwrite 2>/dev/null || true
-        kubectl taint node "${WORKERS[2]}" dedicated=backend2:NoSchedule --overwrite 2>/dev/null || true
-        log_ok "Worker [${WORKERS[2]}] → role=backend2 (Backend Analítico)"
-    fi
-    if [ "$TOTAL" -ge 4 ]; then
-        kubectl label node "${WORKERS[3]}" role=database-mongo --overwrite 2>/dev/null || true
-        kubectl taint node "${WORKERS[3]}" dedicated=database:NoSchedule --overwrite 2>/dev/null || true
-        log_ok "Worker [${WORKERS[3]}] → role=database-mongo (MongoDB)"
-    fi
+    for node in $(kubectl get nodes --no-headers | awk '{print $1}'); do
+        case "$node" in
+            *frontend*)
+                kubectl label node "$node" role=frontend --overwrite 2>/dev/null || true
+                kubectl taint node "$node" dedicated=frontend:NoSchedule --overwrite 2>/dev/null || true
+                log_ok "Nodo [$node] → role=frontend"
+                ;;
+            *backend1*|*backend-transaccional*|*transaccional*)
+                kubectl label node "$node" role=backend1 --overwrite 2>/dev/null || true
+                kubectl taint node "$node" dedicated=backend1:NoSchedule --overwrite 2>/dev/null || true
+                log_ok "Nodo [$node] → role=backend1 (Backend Transaccional)"
+                ;;
+            *backend2*|*backend-analitico*|*analitico*)
+                kubectl label node "$node" role=backend2 --overwrite 2>/dev/null || true
+                kubectl taint node "$node" dedicated=backend2:NoSchedule --overwrite 2>/dev/null || true
+                log_ok "Nodo [$node] → role=backend2 (Backend Analítico)"
+                ;;
+            *mongo*)
+                kubectl label node "$node" role=database-mongo --overwrite 2>/dev/null || true
+                kubectl taint node "$node" dedicated=database:NoSchedule --overwrite 2>/dev/null || true
+                log_ok "Nodo [$node] → role=database-mongo (MongoDB)"
+                ;;
+        esac
+    done
 
     # Paso 2 — Config base con endpoints reales
     apply_base_config

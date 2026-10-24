@@ -68,9 +68,13 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
   | tee /etc/apt/sources.list.d/docker.list > /dev/null
 apt-get update -y
 apt-get install -y docker-ce docker-ce-cli containerd.io
-systemctl enable --now docker
+mkdir -p /etc/containerd
+containerd config default | tee /etc/containerd/config.toml > /dev/null
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+systemctl restart containerd
+systemctl enable --now docker containerd
 usermod -aG docker ubuntu
-log_ok "Docker instalado y activo"
+log_ok "Docker y containerd configurados con SystemdCgroup"
 
 # ═══════════════════════════════════════════════════════
 # PASO 3 — Instalar kubeadm, kubelet, kubectl
@@ -119,7 +123,8 @@ kubeadm init \
   --apiserver-advertise-address="$PRIVATE_IP" \
   --apiserver-cert-extra-sans="$PUBLIC_IP" \
   --pod-network-cidr=10.244.0.0/16 \
-  --node-name="visons-master" | tee /tmp/kubeadm-init.log
+  --node-name="visons-master" \
+  --ignore-preflight-errors=NumCPU,Mem | tee /tmp/kubeadm-init.log
 
 # Configurar kubectl para el usuario ubuntu
 mkdir -p /home/ubuntu/.kube

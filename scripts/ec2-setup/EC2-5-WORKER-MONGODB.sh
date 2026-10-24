@@ -120,9 +120,13 @@ echo "deb [arch=$(dpkg --print-architecture) signed-by=/usr/share/keyrings/docke
   https://download.docker.com/linux/ubuntu $(lsb_release -cs) stable" \
   | tee /etc/apt/sources.list.d/docker.list > /dev/null
 apt-get update -y && apt-get install -y docker-ce docker-ce-cli containerd.io
-systemctl enable --now docker
+mkdir -p /etc/containerd
+containerd config default | tee /etc/containerd/config.toml > /dev/null
+sed -i 's/SystemdCgroup = false/SystemdCgroup = true/g' /etc/containerd/config.toml
+systemctl restart containerd
+systemctl enable --now docker containerd
 usermod -aG docker ubuntu
-log_ok "Docker instalado"
+log_ok "Docker y containerd configurados con SystemdCgroup"
 
 # ═══════════════════════════════════════════════════════
 # PASO 4 — Instalar kubelet + kubeadm
@@ -180,7 +184,7 @@ log_ok "Directorio /data/mongodb preparado"
 # PASO 6 — Unirse al clúster Kubernetes
 # ═══════════════════════════════════════════════════════
 log_step "6/6: Uniéndose al clúster como Worker (MongoDB)"
-eval "$JOIN_CMD" --node-name="visons-worker-mongodb"
+eval "$JOIN_CMD" --node-name="visons-worker-mongodb" --ignore-preflight-errors=NumCPU,Mem
 log_ok "Nodo unido al clúster"
 
 # ───────────────────────────────────────────────────────
