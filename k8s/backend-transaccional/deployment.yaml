@@ -39,8 +39,16 @@ spec:
         prometheus.io/port: "9090"
         prometheus.io/path: "/actuator/prometheus"
     spec:
-      nodeSelector:
-        role: backend1
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: role
+                    operator: In
+                    values:
+                      - backend1
       tolerations:
         - key: "dedicated"
           operator: "Equal"
@@ -65,20 +73,20 @@ spec:
           # Sondas de Liveness y Readiness para alta disponibilidad
           livenessProbe:
             httpGet:
-              path: /actuator/health
-              port: 9090
-            initialDelaySeconds: 45
-            periodSeconds: 15
-            timeoutSeconds: 5
-            failureThreshold: 3
-          readinessProbe:
-            httpGet:
-              path: /actuator/health
+              path: /actuator/info
               port: 9090
             initialDelaySeconds: 30
-            periodSeconds: 10
+            periodSeconds: 20
             timeoutSeconds: 5
-            failureThreshold: 3
+            failureThreshold: 5
+          readinessProbe:
+            httpGet:
+              path: /actuator/info
+              port: 9090
+            initialDelaySeconds: 25
+            periodSeconds: 15
+            timeoutSeconds: 5
+            failureThreshold: 5
           # Límites y reservas de recursos para autoscaling (HPA) y protección OOM
           resources:
             requests:

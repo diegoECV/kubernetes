@@ -21,20 +21,23 @@ prometheus:
     podMonitorNamespaceSelector:
       matchLabels: {}
 
+    tolerations:
+      - operator: "Exists"
+
     retention: 15d
 
     resources:
       requests:
-        cpu: 200m
-        memory: 512Mi
+        cpu: 100m
+        memory: 256Mi
       limits:
-        cpu: 800m
-        memory: 1200Mi
+        cpu: 500m
+        memory: 800Mi
 
     storageSpec:
       volumeClaimTemplate:
         spec:
-          storageClassName: standard
+          storageClassName: local-path
           accessModes: ["ReadWriteOnce"]
           resources:
             requests:
@@ -43,6 +46,8 @@ prometheus:
 grafana:
   enabled: true
   adminUser: admin
+  tolerations:
+    - operator: "Exists"
   adminPassword: visons2026
 
   service:
@@ -83,6 +88,8 @@ grafana:
 alertmanager:
   enabled: true
   alertmanagerSpec:
+    tolerations:
+      - operator: "Exists"
     resources:
       requests:
         cpu: 50m

@@ -41,6 +41,24 @@ spec:
         app: mongodb
         tier: database
     spec:
+      affinity:
+        nodeAffinity:
+          preferredDuringSchedulingIgnoredDuringExecution:
+            - weight: 100
+              preference:
+                matchExpressions:
+                  - key: role
+                    operator: In
+                    values:
+                      - database-mongo
+      tolerations:
+        - key: "dedicated"
+          operator: "Equal"
+          value: "database"
+          effect: "NoSchedule"
+        - key: "dedicated"
+          operator: "Exists"
+          effect: "NoSchedule"
       containers:
         - name: mongodb
           image: mongo:7.0

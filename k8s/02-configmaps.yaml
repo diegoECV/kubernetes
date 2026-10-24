@@ -14,7 +14,7 @@ metadata:
 data:
   # Configuración Backend Transaccional (Spring Boot WebFlux - Java 25)
   SERVER_PORT: "9090"
-  SPRING_R2DBC_URL: "r2dbc:sqlserver://visons-db.cjwoansjw85b.us-east-1.rds.amazonaws.com:1433;database=Visons;encrypt=true;trustServerCertificate=true"
+  SPRING_R2DBC_URL: "r2dbc:sqlserver://sqlserver-service:1433;database=Visons;encrypt=true;trustServerCertificate=true"
   SPRING_R2DBC_USERNAME: "sa"
   FRONTEND_URL: "http://localhost:5173"
   JWT_EXPIRATION_MS: "36000000"

@@ -43,7 +43,7 @@ spec:
     spec:
       containers:
         - name: sqlserver
-          image: mcr.microsoft.com/mssql/server:2022-latest
+          image: mcr.microsoft.com/azure-sql-edge:latest
           imagePullPolicy: IfNotPresent
           ports:
             - containerPort: 1433
@@ -52,7 +52,7 @@ spec:
             - name: ACCEPT_EULA
               value: "Y"
             - name: MSSQL_PID
-              value: "Developer"
+              value: "Express"
             - name: MSSQL_SA_PASSWORD
               valueFrom:
                 secretKeyRef:
@@ -60,11 +60,11 @@ spec:
                   key: MSSQL_SA_PASSWORD
           resources:
             requests:
-              cpu: "300m"
-              memory: "1Gi"
+              cpu: "200m"
+              memory: "512Mi"
             limits:
-              cpu: "1500m"
-              memory: "2Gi"
+              cpu: "1000m"
+              memory: "1536Mi"
           volumeMounts:
             - name: sqlserver-data
               mountPath: /var/opt/mssql

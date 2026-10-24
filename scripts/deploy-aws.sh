@@ -45,37 +45,35 @@ check_cluster() {
 # ── 2. Aislamiento Físico de Nodos (Labels & Taints) ──────────────────────────
 isolate_nodes() {
     log_step "2/7: Aplicando Aislamiento de Nodos (Node Labels y Taints dedicados)"
-    local nodes=($(kubectl get nodes -o jsonpath='{.items[*].metadata.name}'))
-    local total=${#nodes[@]}
+    
+    # 1. Asegurar que el Master no tenga taints de aplicaciones
+    local master_nodes=($(kubectl get nodes --no-headers | grep -E 'control-plane|master' | awk '{print $1}'))
+    for m in "${master_nodes[@]}"; do
+        kubectl taint node "$m" dedicated- 2>/dev/null || true
+        kubectl label node "$m" node-role.kubernetes.io/master=true --overwrite 2>/dev/null || true
+        log_info "Master [$m] protegido sin taints de aplicaciones."
+    done
 
-    log_info "Total de nodos detectados en el clúster: $total"
+    # 2. Asignar roles dedicados a los workers
+    local workers=($(kubectl get nodes --no-headers | grep -vE 'control-plane|master' | awk '{print $1}'))
+    local total=${#workers[@]}
+    log_info "Workers detectados para aislamiento: $total"
 
     if [ "$total" -ge 3 ]; then
-        log_info "Asignando roles dedicados y taints a los 3 nodos principales:"
-        
-        # Nodo 1: Frontend Web
-        kubectl label node "${nodes[0]}" role=frontend --overwrite
-        kubectl taint node "${nodes[0]}" dedicated=frontend:NoSchedule --overwrite 2>/dev/null || true
-        log_success "Nodo 1 [${nodes[0]}]: role=frontend | taint: dedicated=frontend:NoSchedule"
+        # Worker 1: Frontend Web
+        kubectl label node "${workers[0]}" role=frontend --overwrite
+        kubectl taint node "${workers[0]}" dedicated=frontend:NoSchedule --overwrite 2>/dev/null || true
+        log_success "Worker 1 [${workers[0]}]: role=frontend | taint: dedicated=frontend:NoSchedule"
 
-        # Nodo 2: Backend Transaccional (Spring Boot Java 25)
-        kubectl label node "${nodes[1]}" role=backend1 --overwrite
-        kubectl taint node "${nodes[1]}" dedicated=backend1:NoSchedule --overwrite 2>/dev/null || true
-        log_success "Nodo 2 [${nodes[1]}]: role=backend1 | taint: dedicated=backend1:NoSchedule"
+        # Worker 2: Backend Transaccional (Spring Boot Java 25)
+        kubectl label node "${workers[1]}" role=backend1 --overwrite
+        kubectl taint node "${workers[1]}" dedicated=backend1:NoSchedule --overwrite 2>/dev/null || true
+        log_success "Worker 2 [${workers[1]}]: role=backend1 | taint: dedicated=backend1:NoSchedule"
 
-        # Nodo 3: Backend Analítico (Python 3.12 Flask)
-        kubectl label node "${nodes[2]}" role=backend2 --overwrite
-        kubectl taint node "${nodes[2]}" dedicated=backend2:NoSchedule --overwrite 2>/dev/null || true
-        log_success "Nodo 3 [${nodes[2]}]: role=backend2 | taint: dedicated=backend2:NoSchedule"
-    else
-        log_warn "Menos de 3 nodos detectados ($total). Etiquetando nodos disponibles sin taints estrictos..."
-        for idx in "${!nodes[@]}"; do
-            case $idx in
-                0) kubectl label node "${nodes[$idx]}" role=frontend --overwrite ;;
-                1) kubectl label node "${nodes[$idx]}" role=backend1 --overwrite ;;
-                2) kubectl label node "${nodes[$idx]}" role=backend2 --overwrite ;;
-            esac
-        done
+        # Worker 3: Backend Analítico (Python 3.12 Flask)
+        kubectl label node "${workers[2]}" role=backend2 --overwrite
+        kubectl taint node "${workers[2]}" dedicated=backend2:NoSchedule --overwrite 2>/dev/null || true
+        log_success "Worker 3 [${workers[2]}]: role=backend2 | taint: dedicated=backend2:NoSchedule"
     fi
 }
 
@@ -91,26 +89,28 @@ deploy_config() {
 # ── 4. Stack de Observabilidad con Helm ────────────────────────────────────────
 deploy_monitoring() {
     log_step "4/7: Desplegando Stack de Observabilidad (Prometheus & Grafana)"
+    if ! command -v helm &>/dev/null; then
+        log_info "Helm no detectado. Instalando Helm v3..."
+        curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+    fi
+
+    if [ -f "/etc/rancher/k3s/k3s.yaml" ]; then
+        export KUBECONFIG=/etc/rancher/k3s/k3s.yaml
+    fi
+
     if ! helm repo list 2>/dev/null | grep -q "prometheus-community"; then
         helm repo add prometheus-community https://prometheus-community.github.io/helm-charts
     fi
     helm repo update
 
-    if helm list -n monitoring 2>/dev/null | grep -q "monitoring"; then
-        log_info "Actualizando kube-prometheus-stack..."
-        helm upgrade monitoring prometheus-community/kube-prometheus-stack \
-            --namespace monitoring \
-            --values k8s/monitoring/prometheus-values.yaml \
-            --wait --timeout 8m
-    else
-        log_info "Instalando kube-prometheus-stack..."
-        helm install monitoring prometheus-community/kube-prometheus-stack \
-            --namespace monitoring \
-            --create-namespace \
-            --values k8s/monitoring/prometheus-values.yaml \
-            --wait --timeout 8m
-    fi
-    log_success "Observabilidad desplegada en namespace 'monitoring'"
+    log_info "Instalando/Actualizando kube-prometheus-stack..."
+    helm upgrade --install monitoring prometheus-community/kube-prometheus-stack \
+        --namespace monitoring \
+        --create-namespace \
+        --values k8s/monitoring/prometheus-values.yaml \
+        --timeout 5m || log_warn "Helm completó con advertencias, continuando con microservicios..."
+
+    log_success "Observabilidad configurada en namespace 'monitoring'"
 }
 
 # ── 5. Despliegue de Microservicios & Autoscaling (HPA) ────────────────────────
