@@ -68,7 +68,8 @@ sudo bash EC2-5-WORKER-MONGODB.sh "kubeadm join ..."
 ### 7. Desplegar todo desde tu máquina local
 ```bash
 cd kubernetes/
-bash scripts/deploy-master.sh <IP_PUBLICA_MASTER>
+# Configura las IPs en la cabecera de scripts/deploy-visons.sh y luego:
+bash scripts/deploy-visons.sh
 ```
 
 ---

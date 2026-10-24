@@ -209,10 +209,17 @@ seed_databases() {
     log_step "🌱 Inicializando datos en SQL Server y MongoDB"
 
     # Detectar ruta absoluta de los scripts de inicialización
-    # Funciona desde kubernetes/ o desde cualquier subdirectorio
-    SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")/.." && pwd)"
-    SQL_SCRIPT="${SCRIPT_DIR}/database-p/init/Visons_sqlserver_completo.sql"
-    MONGO_SCRIPT="${SCRIPT_DIR}/database-p/init/Visons_mongodb_completo.js"
+    local CURRENT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]:-$0}")" && pwd)"
+    local ROOT_DIR=""
+    if [ -d "${CURRENT_DIR}/../../database-p" ]; then
+        ROOT_DIR="$(cd "${CURRENT_DIR}/../.." && pwd)"
+    elif [ -d "${CURRENT_DIR}/../database-p" ]; then
+        ROOT_DIR="$(cd "${CURRENT_DIR}/.." && pwd)"
+    else
+        ROOT_DIR="$(pwd)"
+    fi
+    SQL_SCRIPT="${ROOT_DIR}/database-p/init/Visons_sqlserver_completo.sql"
+    MONGO_SCRIPT="${ROOT_DIR}/database-p/init/Visons_mongodb_completo.js"
 
     if [ ! -f "$SQL_SCRIPT" ]; then
         log_warn "No se encontró: $SQL_SCRIPT — seed SQL omitido"
