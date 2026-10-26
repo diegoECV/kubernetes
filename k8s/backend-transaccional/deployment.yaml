@@ -39,24 +39,8 @@ spec:
         prometheus.io/port: "9090"
         prometheus.io/path: "/actuator/prometheus"
     spec:
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: role
-                    operator: In
-                    values:
-                      - backend1
-      tolerations:
-        - key: "dedicated"
-          operator: "Equal"
-          value: "backend1"
-          effect: "NoSchedule"
-        - key: "dedicated"
-          operator: "Exists"
-          effect: "NoSchedule"
+      nodeSelector:
+        role: backend1
       containers:
         - name: backend-transaccional
           image: diego5621/backend-transaccional:latest

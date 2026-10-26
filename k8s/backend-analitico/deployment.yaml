@@ -39,24 +39,8 @@ spec:
         prometheus.io/port: "5000"
         prometheus.io/path: "/health"
     spec:
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: role
-                    operator: In
-                    values:
-                      - backend2
-      tolerations:
-        - key: "dedicated"
-          operator: "Equal"
-          value: "backend2"
-          effect: "NoSchedule"
-        - key: "dedicated"
-          operator: "Exists"
-          effect: "NoSchedule"
+      nodeSelector:
+        role: backend2
       containers:
         - name: backend-analitico
           image: diego5621/backend-analitico:latest

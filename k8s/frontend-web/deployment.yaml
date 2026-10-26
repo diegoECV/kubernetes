@@ -32,24 +32,8 @@ spec:
         component: ui-web
         version: "v1.0"
     spec:
-      affinity:
-        nodeAffinity:
-          preferredDuringSchedulingIgnoredDuringExecution:
-            - weight: 100
-              preference:
-                matchExpressions:
-                  - key: role
-                    operator: In
-                    values:
-                      - frontend
-      tolerations:
-        - key: "dedicated"
-          operator: "Equal"
-          value: "frontend"
-          effect: "NoSchedule"
-        - key: "dedicated"
-          operator: "Exists"
-          effect: "NoSchedule"
+      nodeSelector:
+        role: frontend
       containers:
         - name: frontend-web
           image: diego5621/frontend-web:latest

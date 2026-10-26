@@ -256,6 +256,10 @@ GO
 PRINT 'Limpiando tablas para reinsercion limpia...';
 GO
 
+-- Deshabilitar constraints temporalmente durante la carga
+EXEC sp_msforeachtable "ALTER TABLE ? NOCHECK CONSTRAINT all";
+GO
+
 DELETE FROM CUSTOMS_DECLARATIONS;
 DELETE FROM CERTIFICATES;
 DELETE FROM SHIPMENT_ITEMS;
@@ -270,35 +274,25 @@ DELETE FROM BATCHES;
 DELETE FROM control.schema_change;
 GO
 
-DBCC CHECKIDENT ('ORDERS', RESEED, 0);
-DBCC CHECKIDENT ('ORDER_DETAILS', RESEED, 0);
-DBCC CHECKIDENT ('PAYMENTS', RESEED, 0);
-DBCC CHECKIDENT ('INVOICES', RESEED, 0);
-DBCC CHECKIDENT ('SHIPMENTS', RESEED, 0);
-DBCC CHECKIDENT ('SHIPMENT_ITEMS', RESEED, 0);
-DBCC CHECKIDENT ('CERTIFICATES', RESEED, 0);
-DBCC CHECKIDENT ('CUSTOMS_DECLARATIONS', RESEED, 0);
-DBCC CHECKIDENT ('AUDIT_LOGS', RESEED, 0);
-DBCC CHECKIDENT ('ASSIGNMENTS', RESEED, 0);
-DBCC CHECKIDENT ('BATCHES', RESEED, 0);
-GO
-
 -- 5. Inserción de Semillas Coherentes (10 filas por entidad)
 PRINT 'Insertando 10 datos semilla por cada entidad en SQL Server...';
 GO
 
--- 1. ORDERS (10 filas)
-INSERT INTO ORDERS (client_id, order_code, order_date, incoterm, status, status_description, currency, payment_terms, destination_port, estimated_shipping_date) VALUES
-('CLI-001', 'ORD-001', '2026-09-01', 'FOB', 'COMPLETED', 'Completado con exito', 'USD', '30 dias', 'Rotterdam', '2026-09-15'),
-('CLI-002', 'ORD-002', '2026-09-02', 'CIF', 'COMPLETED', 'Completado y pagado', 'USD', 'Contado', 'Hamburg', '2026-09-16'),
-('CLI-003', 'ORD-003', '2026-09-03', 'EXW', 'COMPLETED', 'Retirado en planta', 'EUR', '60 dias', 'Valencia', '2026-09-17'),
-('CLI-004', 'ORD-004', '2026-09-04', 'FOB', 'PENDING',   'En espera de confirmacion', 'USD', '30 dias', 'Long Beach', '2026-09-20'),
-('CLI-005', 'ORD-005', '2026-09-05', 'CIF', 'PENDING',   'Pendiente de asignacion', 'USD', 'Contado', 'Miami', '2026-09-21'),
-('CLI-006', 'ORD-006', '2026-09-06', 'FCA', 'SHIPPED',   'Cargamento en transito', 'USD', '45 dias', 'Yokohama', '2026-09-22'),
-('CLI-007', 'ORD-007', '2026-09-07', 'FOB', 'SHIPPED',   'En ruta maritima', 'EUR', '30 dias', 'Antwerp', '2026-09-23'),
-('CLI-008', 'ORD-008', '2026-09-08', 'CIF', 'DELIVERED', 'Entregado en destino', 'USD', 'Contado', 'Busan', '2026-09-25'),
-('CLI-009', 'ORD-009', '2026-09-09', 'EXW', 'PROCESSING','En empaque y pesado', 'USD', '30 dias', 'Callao', '2026-09-26'),
-('CLI-010', 'ORD-010', '2026-09-10', 'FOB', 'PROCESSING','En control de calidad', 'USD', 'Contado', 'Shanghai', '2026-09-27');
+-- 1. ORDERS (10 filas con order_id 1..10 exacto)
+SET IDENTITY_INSERT ORDERS ON;
+INSERT INTO ORDERS (order_id, client_id, order_code, order_date, incoterm, status, status_description, currency, payment_terms, destination_port, estimated_shipping_date) VALUES
+(1,  'CLI-001', 'ORD-001', '2026-09-01', 'FOB', 'COMPLETED', 'Completado con exito', 'USD', '30 dias', 'Rotterdam', '2026-09-15'),
+(2,  'CLI-002', 'ORD-002', '2026-09-02', 'CIF', 'COMPLETED', 'Completado y pagado', 'USD', 'Contado', 'Hamburg', '2026-09-16'),
+(3,  'CLI-003', 'ORD-003', '2026-09-03', 'EXW', 'COMPLETED', 'Retirado en planta', 'EUR', '60 dias', 'Valencia', '2026-09-17'),
+(4,  'CLI-004', 'ORD-004', '2026-09-04', 'FOB', 'PENDING',   'En espera de confirmacion', 'USD', '30 dias', 'Long Beach', '2026-09-20'),
+(5,  'CLI-005', 'ORD-005', '2026-09-05', 'CIF', 'PENDING',   'Pendiente de asignacion', 'USD', 'Contado', 'Miami', '2026-09-21'),
+(6,  'CLI-006', 'ORD-006', '2026-09-06', 'FCA', 'SHIPPED',   'Cargamento en transito', 'USD', '45 dias', 'Yokohama', '2026-09-22'),
+(7,  'CLI-007', 'ORD-007', '2026-09-07', 'FOB', 'SHIPPED',   'En ruta maritima', 'EUR', '30 dias', 'Antwerp', '2026-09-23'),
+(8,  'CLI-008', 'ORD-008', '2026-09-08', 'CIF', 'DELIVERED', 'Entregado en destino', 'USD', 'Contado', 'Busan', '2026-09-25'),
+(9,  'CLI-009', 'ORD-009', '2026-09-09', 'EXW', 'PROCESSING','En empaque y pesado', 'USD', '30 dias', 'Callao', '2026-09-26'),
+(10, 'CLI-010', 'ORD-010', '2026-09-10', 'FOB', 'PROCESSING','En control de calidad', 'USD', 'Contado', 'Shanghai', '2026-09-27');
+SET IDENTITY_INSERT ORDERS OFF;
+DBCC CHECKIDENT ('ORDERS', RESEED, 10);
 GO
 
 -- 2. ORDER_DETAILS (10 filas)
@@ -357,18 +351,21 @@ INSERT INTO INVOICES (order_id, invoice_number, issue_date, due_date, currency, 
 (10, 'INV-010', '2026-09-11', '2026-10-11', 'USD', 9750.00, 0.00, 9750.00, 'PAID',    'FACTURA_EXP', 3.7500, 'ACEPTADO');
 GO
 
--- 6. SHIPMENTS (10 filas)
-INSERT INTO SHIPMENTS (order_id, bl_number, booking_number, freight_forwarder, vessel_name, container_number, departure_port, arrival_port, departure_date, estimated_arrival, status, temperature_setpoint) VALUES
-(1,  'BL-1001', 'BKG-1001', 'KUEHNE+NAGEL', 'MSC ISABELLA',    'MSCU1234567', 'Callao', 'Rotterdam', '2026-09-15', '2026-10-05', 'DELIVERED',  4.0),
-(2,  'BL-1002', 'BKG-1002', 'DHL GLOBAL', 'MAERSK MC-KINNEY','MSKU2345678', 'Paita',  'Hamburg',   '2026-09-16', '2026-10-08', 'DELIVERED',  3.5),
-(3,  'BL-1003', 'BKG-1003', 'SCHENKER', 'CMA CGM ANTOINE', 'CMAU3456789', 'Callao', 'Valencia',  '2026-09-17', '2026-10-09', 'IN_TRANSIT', 4.0),
-(4,  'BL-1004', 'BKG-1004', 'KUEHNE+NAGEL', 'HAPAG LLOYD RIO', 'HLCU4567890', 'Callao', 'Long Beach','2026-09-20', '2026-10-02', 'IN_TRANSIT', 3.8),
-(5,  'BL-1005', 'BKG-1005', 'EXPEDITORS', 'ONE OLYMPUS',     'ONEU5678901', 'Paita',  'Miami',     '2026-09-21', '2026-10-03', 'IN_TRANSIT', 4.2),
-(6,  'BL-1006', 'BKG-1006', 'DSV PANALPINA', 'EVER GIVEN',      'EGLV6789012', 'Callao', 'Yokohama',  '2026-09-22', '2026-10-15', 'IN_TRANSIT', 4.0),
-(7,  'BL-1007', 'BKG-1007', 'KUEHNE+NAGEL', 'COSCO SHIPPING',  'COSU7890123', 'Callao', 'Antwerp',   '2026-09-23', '2026-10-16', 'IN_TRANSIT', 3.9),
-(8,  'BL-1008', 'BKG-1008', 'DHL GLOBAL', 'YANG MING WISH',  'YMLU8901234', 'Paita',  'Busan',     '2026-09-25', '2026-10-18', 'DELIVERED',  4.1),
-(9,  'BL-1009', 'BKG-1009', 'EXPEDITORS', 'PACIFIC VOYAGER', 'PCIU9012345', 'Callao', 'Callao',    '2026-09-26', '2026-09-30', 'PENDING',    4.0),
-(10, 'BL-1010', 'BKG-1010', 'SCHENKER', 'ORIENTAL STAR',   'OOLU0123456', 'Callao', 'Shanghai',  '2026-09-27', '2026-10-22', 'PENDING',    3.7);
+-- 6. SHIPMENTS (10 filas con shipment_id 1..10 exacto)
+SET IDENTITY_INSERT SHIPMENTS ON;
+INSERT INTO SHIPMENTS (shipment_id, order_id, bl_number, booking_number, freight_forwarder, vessel_name, container_number, departure_port, arrival_port, departure_date, estimated_arrival, status, temperature_setpoint) VALUES
+(1,  1,  'BL-1001', 'BKG-1001', 'KUEHNE+NAGEL', 'MSC ISABELLA',    'MSCU1234567', 'Callao', 'Rotterdam', '2026-09-15', '2026-10-05', 'DELIVERED',  4.0),
+(2,  2,  'BL-1002', 'BKG-1002', 'DHL GLOBAL', 'MAERSK MC-KINNEY','MSKU2345678', 'Paita',  'Hamburg',   '2026-09-16', '2026-10-08', 'DELIVERED',  3.5),
+(3,  3,  'BL-1003', 'BKG-1003', 'SCHENKER', 'CMA CGM ANTOINE', 'CMAU3456789', 'Callao', 'Valencia',  '2026-09-17', '2026-10-09', 'IN_TRANSIT', 4.0),
+(4,  4,  'BL-1004', 'BKG-1004', 'KUEHNE+NAGEL', 'HAPAG LLOYD RIO', 'HLCU4567890', 'Callao', 'Long Beach','2026-09-20', '2026-10-02', 'IN_TRANSIT', 3.8),
+(5,  5,  'BL-1005', 'BKG-1005', 'EXPEDITORS', 'ONE OLYMPUS',     'ONEU5678901', 'Paita',  'Miami',     '2026-09-21', '2026-10-03', 'IN_TRANSIT', 4.2),
+(6,  6,  'BL-1006', 'BKG-1006', 'DSV PANALPINA', 'EVER GIVEN',      'EGLV6789012', 'Callao', 'Yokohama',  '2026-09-22', '2026-10-15', 'IN_TRANSIT', 4.0),
+(7,  7,  'BL-1007', 'BKG-1007', 'KUEHNE+NAGEL', 'COSCO SHIPPING',  'COSU7890123', 'Callao', 'Antwerp',   '2026-09-23', '2026-10-16', 'IN_TRANSIT', 3.9),
+(8,  8,  'BL-1008', 'BKG-1008', 'DHL GLOBAL', 'YANG MING WISH',  'YMLU8901234', 'Paita',  'Busan',     '2026-09-25', '2026-10-18', 'DELIVERED',  4.1),
+(9,  9,  'BL-1009', 'BKG-1009', 'EXPEDITORS', 'PACIFIC VOYAGER', 'PCIU9012345', 'Callao', 'Callao',    '2026-09-26', '2026-09-30', 'PENDING',    4.0),
+(10, 10, 'BL-1010', 'BKG-1010', 'SCHENKER', 'ORIENTAL STAR',   'OOLU0123456', 'Callao', 'Shanghai',  '2026-09-27', '2026-10-22', 'PENDING',    3.7);
+SET IDENTITY_INSERT SHIPMENTS OFF;
+DBCC CHECKIDENT ('SHIPMENTS', RESEED, 10);
 GO
 
 -- 7. SHIPMENT_ITEMS (10 filas)
@@ -447,6 +444,8 @@ INSERT INTO control.schema_change (sequence, change_id, checksum, git_sha, relea
 (2, 'V002__add_status_description',       'a1b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef0', 'main-release-2026', 'v1.1.0', SYSDATETIME()),
 (3, 'V003__add_assignments_and_batches',   'b2c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef01', 'main-release-2026', 'v1.2.0', SYSDATETIME()),
 (4, 'V004__update_orders_invoices',        'c3d4e5f60718293a4b5c6d7e8f90123456789abcdef0123456789abcdef012', 'main-release-2026', 'v1.3.0', SYSDATETIME());
+-- Reactivar todas las llaves foráneas y validar integridad referencial
+EXEC sp_msforeachtable "ALTER TABLE ? WITH CHECK CHECK CONSTRAINT all";
 GO
 
 PRINT '=====================================================================';
