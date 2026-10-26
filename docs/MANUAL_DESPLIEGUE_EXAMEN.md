@@ -462,10 +462,10 @@ sleep 25
 
 ---
 
-### 7.4 Inyectar la IP Pública en el Frontend React compilado
+### 7.4 Inyectar la IP Pública y Corregir Frontend React
 ```bash
 kubectl exec -n visons-prod deployment/frontend-web -- sh -c \
-  "sed -i 's|http://localhost:9090|http://$ELASTIC_IP:30090|g; s|http://localhost:5000|http://$ELASTIC_IP:30500|g; s|34.228.12.107|$ELASTIC_IP|g; s|54.234.91.155|$ELASTIC_IP|g; s|52.73.219.160|$ELASTIC_IP|g' /usr/share/nginx/html/assets/*.js"
+  "sed -i 's|classList.add(\"dark\");|classList.add(\"dark\"); }|g; s|classList.add('\''dark'\'');|classList.add('\''dark'\''); }|g' /usr/share/nginx/html/index.html 2>/dev/null || true; sed -i 's|http://localhost:9090|http://$ELASTIC_IP:30090|g; s|http://localhost:5000|http://$ELASTIC_IP:30500|g; s|34.228.12.107|$ELASTIC_IP|g; s|54.234.91.155|$ELASTIC_IP|g; s|52.73.219.160|$ELASTIC_IP|g' /usr/share/nginx/html/assets/*.js"
 ```
 
 ---
