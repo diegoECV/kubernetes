@@ -18,30 +18,7 @@
 
 ---
 
-## 📌 0. VARIABLES DE CONFIGURACIÓN GLOBAL
-> Define estas variables al iniciar la sesión en una hoja de notas o cárgalas en la terminal. **IMPORTANTE:** Todas las contraseñas van entre comillas simples `'...'` para evitar que Bash las interprete como expansiones de historial si contienen signos como `!`.
 
-```bash
-# Variables del entorno AWS
-export AWS_REGION="us-east-1"
-export VPC_CIDR="172.31.0.0/16"
-export PREFIX_LIST_EIC="com.amazonaws.us-east-1.ec2-instance-connect"
-
-# Tu IP pública para acceso administrativo seguro:
-export MY_IP="$(curl -s https://checkip.amazonaws.com)/32"
-
-# Parámetros de Amazon RDS SQL Server:
-export RDS_ENDPOINT="visonsdb.ct6imgsdpqef.us-east-1.rds.amazonaws.com"
-export RDS_PORT="1433"
-export RDS_USER="admin"
-export RDS_PASSWORD='tu_password_rds'  # ← En comillas simples
-
-# Parámetros del Master (completar tras lanzar las EC2):
-export MASTER_PUBLIC_IP="52.20.37.223"   # ← IP pública de visons-master
-export MASTER_PRIVATE_IP="172.31.20.216" # ← IP privada de visons-master
-```
-
----
 
 # 🛡️ PASO 1: CREAR 3 SECURITY GROUPS (VACÍOS) ➔ LUEGO SUS REGLAS
 > **¿Por qué este orden?** Los Security Groups se crean primero **completamente vacíos** y luego se agregan las reglas. Esto es obligatorio porque se referencian entre sí como origen (Source SG), evitando errores de dependencia circular en AWS.
