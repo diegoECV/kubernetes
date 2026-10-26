@@ -395,17 +395,25 @@ kubectl get pods -n visons-prod -o wide
 
 ---
 
-## 🟢 INYECCIÓN FINAL DE LA IP ELÁSTICA EN EL FRONTEND
-> Ejecuta esto en el Master reemplazando `52.73.219.160` por la IP Elástica asignada a tu Master:
+## 🟡 POBLADO DE BASES DE DATOS (SEEDER MONGODB Y AMAZON RDS)
+> **¿Por qué es necesario?** La base de datos de Amazon RDS SQL Server viene vacía (sin tablas) y MongoDB inicia sin colecciones. Para que el login funcione y la analítica muestre gráficos, ejecuta este script que crea las 11 tablas, 16 colecciones e inserta los datos de prueba:
 
 ```bash
-ELASTIC_IP="52.73.219.160"  # ← Pon tu IP Elástica de AWS aquí
+# Opción A (Automática en 1 paso):
+bash scripts/seed-databases.sh
 
-# Inyectar la IP en los archivos estáticos en ejecución:
-kubectl exec -n visons-prod deployment/frontend-web -- sh -c "sed -i 's|http://localhost:9090|http://'$ELASTIC_IP':30090|g; s|http://localhost:5000|http://'$ELASTIC_IP':30500|g; s|34.228.12.107|'$ELASTIC_IP'|g; s|54.234.91.155|'$ELASTIC_IP'|g' /usr/share/nginx/html/assets/*.js"
+# Opción B (Manual paso a paso si deseas ejecutarlo individualmente):
+# 1. Poblar MongoDB (Usuarios, productos, analítica):
+kubectl exec -i -n visons-prod deployment/mongodb -- mongosh -u admin -p admin123 --authenticationDatabase admin Visons < k8s/databases/init/Visons_mongodb_completo.js
 
-# Verificar que la IP quedó grabada:
-kubectl exec -n visons-prod deployment/frontend-web -- sh -c "grep -o '$ELASTIC_IP:30090' /usr/share/nginx/html/assets/*.js" | head -1
+# 2. Poblar Amazon RDS SQL Server (Tablas de negocio y órdenes):
+# (Si no tienes sqlcmd instalado):
+sudo apt-get update -qq && sudo apt-get install -y -qq bzip2
+curl -sSL "https://github.com/microsoft/go-sqlcmd/releases/download/v1.8.2/sqlcmd-linux-amd64.tar.bz2" | sudo tar -xj -C /usr/local/bin
+sudo chmod +x /usr/local/bin/sqlcmd
+
+# Ejecutar el script SQL en RDS:
+sqlcmd -S "visonsdb.ct6imgsdpqef.us-east-1.rds.amazonaws.com" -U "admin" -P "diego1416" -i k8s/databases/init/Visons_sqlserver_completo.sql
 ```
 
 ---
