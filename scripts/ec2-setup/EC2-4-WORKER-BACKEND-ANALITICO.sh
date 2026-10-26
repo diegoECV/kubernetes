@@ -99,6 +99,10 @@ log_ok "Docker instalado con ulimits para BDs"
 # ═══════════════════════════════════════════════════════
 log_step "3/5: Instalando kubelet y kubeadm"
 swapoff -a && sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
+cat << 'EOF' > /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
 modprobe overlay && modprobe br_netfilter
 cat > /etc/sysctl.d/k8s.conf << 'SYSCTL'
 net.bridge.bridge-nf-call-iptables  = 1

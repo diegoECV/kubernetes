@@ -85,7 +85,11 @@ log_step "3/5: Instalando Kubernetes (kubeadm + kubelet + kubectl)"
 swapoff -a
 sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
-# Cargar módulos de kernel necesarios
+# Cargar módulos de kernel necesarios (persistentes tras reinicios)
+cat << 'EOF' > /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
 modprobe overlay && modprobe br_netfilter
 cat > /etc/sysctl.d/k8s.conf << 'SYSCTL'
 net.bridge.bridge-nf-call-iptables  = 1

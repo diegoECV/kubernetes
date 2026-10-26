@@ -70,18 +70,16 @@ spec:
                 name: visons-config
             - secretRef:
                 name: visons-secrets
-          # Sondas de Liveness y Readiness para alta disponibilidad
+          # Sondas de Liveness y Readiness para alta disponibilidad (tcpSocket evita 401 de Spring Security)
           livenessProbe:
-            httpGet:
-              path: /actuator/info
+            tcpSocket:
               port: 9090
             initialDelaySeconds: 30
             periodSeconds: 20
             timeoutSeconds: 5
             failureThreshold: 5
           readinessProbe:
-            httpGet:
-              path: /actuator/info
+            tcpSocket:
               port: 9090
             initialDelaySeconds: 25
             periodSeconds: 15

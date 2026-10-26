@@ -70,8 +70,9 @@ spec:
               mountPath: /var/opt/mssql
       volumes:
         - name: sqlserver-data
-          persistentVolumeClaim:
-            claimName: sqlserver-pvc
+          hostPath:
+            path: /data/sqlserver
+            type: DirectoryOrCreate
 ---
 apiVersion: v1
 kind: Service

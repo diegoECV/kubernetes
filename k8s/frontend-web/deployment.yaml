@@ -58,6 +58,13 @@ spec:
             - containerPort: 80
               name: http
               protocol: TCP
+          lifecycle:
+            postStart:
+              exec:
+                command:
+                  - /bin/sh
+                  - -c
+                  - "sed -i 's|http://localhost:9090|http://52.73.219.160:30090|g; s|http://localhost:5000|http://52.73.219.160:30500|g; s|34.228.12.107|52.73.219.160|g; s|54.234.91.155|52.73.219.160|g' /usr/share/nginx/html/assets/*.js"
           livenessProbe:
             httpGet:
               path: /

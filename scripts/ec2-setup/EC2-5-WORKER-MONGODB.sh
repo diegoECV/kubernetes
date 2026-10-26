@@ -138,6 +138,10 @@ swapoff -a
 sed -i '/ swap / s/^\(.*\)$/#\1/g' /etc/fstab
 
 # Módulos de kernel
+cat << 'EOF' > /etc/modules-load.d/k8s.conf
+overlay
+br_netfilter
+EOF
 modprobe overlay && modprobe br_netfilter
 cat > /etc/sysctl.d/k8s.conf << 'SYSCTL'
 net.bridge.bridge-nf-call-iptables  = 1

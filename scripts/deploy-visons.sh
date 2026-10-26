@@ -37,18 +37,18 @@ set -euo pipefail
 # ╠══════════════════════════════════════════════════════════════════════════╣
 
 # ── 🌐 IPs del Clúster ────────────────────────────────────────────────────
-MASTER_IP="54.0.0.0"                  # ← IP pública del EC2 Master (EIP AWS)
-WORKER_FRONTEND_IP="10.0.1.10"        # ← IP privada del EC2 Worker Frontend
-WORKER_BACKEND1_IP="10.0.1.11"        # ← IP privada del EC2 Worker Backend-T
-WORKER_BACKEND2_IP="10.0.1.12"        # ← IP privada del EC2 Worker Backend-A
-WORKER_MONGO_IP="10.0.1.13"           # ← IP privada del EC2 Worker MongoDB
+MASTER_IP="52.73.219.160"              # ← IP pública fija (Elastic IP AWS)
+WORKER_FRONTEND_IP="172.31.30.14"      # ← IP privada del EC2 Worker Frontend
+WORKER_BACKEND1_IP="172.31.25.253"     # ← IP privada del EC2 Worker Backend-T
+WORKER_BACKEND2_IP="172.31.27.141"     # ← IP privada del EC2 Worker Backend-A
+WORKER_MONGO_IP="172.31.25.91"         # ← IP privada del EC2 Worker MongoDB
 
 # ── 🛢  Base de Datos SQL Server (Amazon RDS) ─────────────────────────────
-RDS_ENDPOINT="visons-db.xxxx.us-east-1.rds.amazonaws.com"  # ← Endpoint de tu RDS
+RDS_ENDPOINT="visonsdb.ccbcs0a88g7b.us-east-1.rds.amazonaws.com"  # ← Endpoint de tu RDS
 RDS_PORT="1433"
 RDS_DATABASE="Visons"
-RDS_USER="admin"                       # ← Usuario RDS (no 'sa', es 'admin' en RDS)
-RDS_PASSWORD="Password123!"            # ← Contraseña RDS
+RDS_USER="admin"                       # ← Usuario RDS (admin)
+RDS_PASSWORD="diego1416"               # ← Contraseña RDS
 
 # ── 🍃 Base de Datos MongoDB (EC2 o Atlas) ────────────────────────────────
 MONGO_HOST="mongodb-service"           # ← Si es in-cluster: "mongodb-service"
@@ -120,7 +120,7 @@ check_kubectl() {
 # Genera ConfigMap con las IPs/endpoints reales (sin tocar archivos fuente)
 render_configmap() {
     local mongo_uri="mongodb://${MONGO_USER}:${MONGO_PASS}@${MONGO_HOST}:${MONGO_PORT}/${MONGO_DB}?authSource=admin"
-    local r2dbc_url="r2dbc:sqlserver://${RDS_ENDPOINT}:${RDS_PORT};database=${RDS_DATABASE};encrypt=true;trustServerCertificate=true"
+    local r2dbc_url="r2dbc:mssql://${RDS_ENDPOINT}:${RDS_PORT}/${RDS_DATABASE}"
 
     cat << CONFIGMAP
 apiVersion: v1
@@ -137,6 +137,7 @@ data:
   SPRING_R2DBC_USERNAME: "${RDS_USER}"
   FRONTEND_URL: "http://${MASTER_IP}:30080"
   JWT_EXPIRATION_MS: "36000000"
+  JAVA_TOOL_OPTIONS: "-Dio.netty.allocator.type=pooled"
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"
   MANAGEMENT_ENDPOINT_HEALTH_SHOW_DETAILS: "always"
   MANAGEMENT_PROMETHEUS_METRICS_EXPORT_ENABLED: "true"
@@ -459,8 +460,15 @@ mode_2_orquestadores() {
         log_info "MongoDB externo (${MONGO_HOST}:${MONGO_PORT}) — no se despliega pod"
     fi
 
-    # Paso 4 — SQL Server siempre externo en RDS (Modo 2)
-    log_info "SQL Server en RDS: ${RDS_ENDPOINT}:${RDS_PORT} — conexión externa configurada ✓"
+    # Paso 4 — SQL Server en RDS o in-cluster
+    if [[ "$RDS_ENDPOINT" == *"rds.amazonaws.com"* ]]; then
+        log_info "SQL Server en RDS: ${RDS_ENDPOINT}:${RDS_PORT} — conexión externa configurada ✓"
+    else
+        log_step "Desplegando SQL Server in-cluster (Persistencia en clúster)"
+        kubectl apply -f "${K8S_DIR}/databases/sqlserver.yaml"
+        kubectl rollout status deployment/sqlserver -n "$NS" --timeout=240s \
+            && log_ok "SQL Server READY" || log_warn "SQL Server tardando..."
+    fi
 
     # Paso 5 — Microservicios con aislamiento
     log_step "Desplegando Microservicios con aislamiento de nodos"
