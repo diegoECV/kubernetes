@@ -33,16 +33,17 @@
   3. Haz clic en el botón naranja **"Create security group"** (Crear grupo de seguridad) para cada uno de los siguientes 3 grupos:
 
 #### 🔹 Grupo 1: Para el Master
-* **Security group name:** `sg-visons-master`
-* **Description:** `Security Group para visons-master control-plane`
+> ⚠️ **Nota de AWS:** El nombre **no puede empezar con `sg-`** (porque AWS reserva ese prefijo para sus IDs). Por eso colocamos `-sg` al final:
+* **Security group name:** `visons-master-sg`
+* **Description:** `Security Group para visons-master control-plane` *(la descripción es obligatoria)*
 * **VPC:** Deja seleccionada tu **VPC por defecto** (Default VPC).
-* **Inbound rules:** Déjalas **completamente vacías** por ahora (si hay alguna regla por defecto, elimínala).
+* **Inbound rules:** Déjalas **completamente vacías** por ahora.
 * **Outbound rules:** Deja la regla por defecto (`All traffic / 0.0.0.0/0`).
 * Haz clic en **Create security group**.
 
 #### 🔹 Grupo 2: Para los 4 Workers
 * Haz clic nuevamente en **Create security group**:
-* **Security group name:** `sg-visons-workers`
+* **Security group name:** `visons-workers-sg`
 * **Description:** `Security Group unificado para los 4 worker nodes de visons`
 * **VPC:** La misma **VPC por defecto**.
 * **Inbound rules:** Déjalas **completamente vacías**.
@@ -50,7 +51,7 @@
 
 #### 🔹 Grupo 3: Para la base de datos Amazon RDS
 * Haz clic nuevamente en **Create security group**:
-* **Security group name:** `sg-visons-rds`
+* **Security group name:** `visons-rds-sg`
 * **Description:** `Security Group exclusivo para Amazon RDS SQL Server`
 * **VPC:** La misma **VPC por defecto**.
 * **Inbound rules:** Déjalas **completamente vacías**.
@@ -64,53 +65,50 @@ Regresa a la lista de **Security Groups** en la consola de EC2 y edita las regla
 
 ---
 
-#### 🅰️ Reglas para `sg-visons-master`
-1. Selecciona **`sg-visons-master`** en la lista.
+#### 🅰️ Reglas para `visons-master-sg`
+1. Selecciona **`visons-master-sg`** en la lista.
 2. Abajo, en la pestaña **Inbound rules** (Reglas de entrada), haz clic en **Edit inbound rules** (Editar reglas de entrada).
 3. Haz clic en **Add rule** (Agregar regla) para cada una de las siguientes filas:
 
 | Tipo (Type) | Protocolo | Puerto (Port) | Origen (Source) | Valor del Origen | Descripción |
 |---|---|---|---|---|---|
-| **SSH** | TCP | `22` | **Anywhere-IPv4** (o My IP) | `0.0.0.0/0` | Conexión SSH y EC2 Instance Connect |
-| **Custom TCP** | TCP | `6443` | **Custom** | Buscar y seleccionar **`sg-visons-workers`** | K8s API Server para los Workers |
-| **Custom TCP** | TCP | `6443` | **Anywhere-IPv4** (o My IP) | `0.0.0.0/0` | K8s API Server para administración |
+| **SSH** | TCP | `22` | **Anywhere-IPv4** | `0.0.0.0/0` | Conexión SSH y EC2 Instance Connect |
+| **Custom TCP** | TCP | `6443` | **Custom** | Buscar y seleccionar **`visons-workers-sg`** | K8s API Server para los Workers |
+| **Custom TCP** | TCP | `6443` | **Anywhere-IPv4** | `0.0.0.0/0` | K8s API Server para administración |
 | **Custom TCP** | TCP | `30080` | **Anywhere-IPv4** | `0.0.0.0/0` | Acceso Web Frontend React |
 | **Custom TCP** | TCP | `30090` | **Anywhere-IPv4** | `0.0.0.0/0` | API Backend 1 Spring Boot |
 | **Custom TCP** | TCP | `30500` | **Anywhere-IPv4** | `0.0.0.0/0` | API Backend 2 Python Flask |
-| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`sg-visons-workers`** | CNI Flannel (VXLAN 8472) y comunicación K8s |
+| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`visons-workers-sg`** | CNI Flannel (VXLAN 8472) y comunicación K8s |
 
 4. Haz clic en el botón naranja **Save rules** (Guardar reglas).
 
 ---
 
-#### 🅱️ Reglas para `sg-visons-workers`
-1. Selecciona **`sg-visons-workers`** en la lista.
+#### 🅱️ Reglas para `visons-workers-sg`
+1. Selecciona **`visons-workers-sg`** en la lista.
 2. En la pestaña **Inbound rules**, haz clic en **Edit inbound rules**.
-3. Haz clic en **Add rule** para cada una de las siguientes filas:
+3. Haz clic en **Add rule** para cada una de estas **4 filas limpias** (evita duplicados y errores de guardado):
 
 | Tipo (Type) | Protocolo | Puerto (Port) | Origen (Source) | Valor del Origen | Descripción |
 |---|---|---|---|---|---|
-| **SSH** | TCP | `22` | **Anywhere-IPv4** (o My IP) | `0.0.0.0/0` | Conexión SSH y EC2 Instance Connect |
-| **Custom TCP** | TCP | `10250` | **Custom** | Buscar y seleccionar **`sg-visons-master`** | Kubelet API (elimina timeouts de logs/exec) |
-| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`sg-visons-master`** | Tráfico interno Flannel y pods desde Master |
-| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`sg-visons-workers`** | Tráfico inter-workers pod-a-pod |
-| **Custom TCP** | TCP | `30080` | **Anywhere-IPv4** | `0.0.0.0/0` | Acceso directo NodePort Frontend |
-| **Custom TCP** | TCP | `30000 - 32767` | **Anywhere-IPv4** | `0.0.0.0/0` | Rango completo NodePorts de Kubernetes |
-| **Custom TCP** | TCP | `27017` | **Custom** | Buscar y seleccionar **`sg-visons-workers`** | MongoDB exclusivo para los Workers |
+| **SSH** | TCP | `22` | **Anywhere-IPv4** | `0.0.0.0/0` | Conexión SSH y EC2 Instance Connect |
+| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`visons-master-sg`** | Todo el tráfico desde el Master (incluye Kubelet 10250) |
+| **All traffic** | ALL | ALL | **Custom** | Buscar y seleccionar **`visons-workers-sg`** | Tráfico inter-workers (incluye MongoDB 27017 y Flannel) |
+| **Custom TCP** | TCP | `30000-32767` | **Anywhere-IPv4** | `0.0.0.0/0` | Rango NodePorts K8s (Frontend 30080, Backend 30090, 30500) |
 
 4. Haz clic en **Save rules**.
 
 ---
 
-#### 🅲️ Reglas para `sg-visons-rds`
-1. Selecciona **`sg-visons-rds`** en la lista.
+#### 🅲️ Reglas para `visons-rds-sg`
+1. Selecciona **`visons-rds-sg`** en la lista.
 2. En la pestaña **Inbound rules**, haz clic en **Edit inbound rules**.
 3. Haz clic en **Add rule** para cada una de las siguientes filas:
 
 | Tipo (Type) | Protocolo | Puerto (Port) | Origen (Source) | Valor del Origen | Descripción |
 |---|---|---|---|---|---|
-| **MS SQL** | TCP | `1433` | **Custom** | Buscar y seleccionar **`sg-visons-master`** | Acceso desde Master para `sqlcmd` y pruebas |
-| **MS SQL** | TCP | `1433` | **Custom** | Buscar y seleccionar **`sg-visons-workers`** | Conexión R2DBC desde Backend 1 y Backend 2 |
+| **MS SQL** | TCP | `1433` | **Custom** | Buscar y seleccionar **`visons-master-sg`** | Acceso desde Master para `sqlcmd` y pruebas |
+| **MS SQL** | TCP | `1433` | **Custom** | Buscar y seleccionar **`visons-workers-sg`** | Conexión R2DBC desde Backend 1 y Backend 2 |
 
 4. Haz clic en **Save rules**.
 
@@ -125,11 +123,11 @@ Crea las **5 instancias** con la siguiente configuración:
 
 | # | Name (Nombre) | Rol K8s | AMI (Sistema Operativo) | Instance type | Disco (Storage) | Security Group a seleccionar |
 |---|---|---|---|---|---|---|
-| **1** | **`visons-master`** | Control-Plane | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`sg-visons-master`** |
-| **2** | **`visons-worker-frontend`** | Worker Frontend | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`sg-visons-workers`** |
-| **3** | **`visons-worker-backend1`** | Worker Backend 1 | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`sg-visons-workers`** |
-| **4** | **`visons-worker-backend2`** | Worker Backend 2 | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`sg-visons-workers`** |
-| **5** | **`visons-worker-mongodb`** | Worker MongoDB | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`sg-visons-workers`** |
+| **1** | **`visons-master`** | Control-Plane | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`visons-master-sg`** |
+| **2** | **`visons-worker-frontend`** | Worker Frontend | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`visons-workers-sg`** |
+| **3** | **`visons-worker-backend1`** | Worker Backend 1 | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`visons-workers-sg`** |
+| **4** | **`visons-worker-backend2`** | Worker Backend 2 | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`visons-workers-sg`** |
+| **5** | **`visons-worker-mongodb`** | Worker MongoDB | **Ubuntu Server 22.04 LTS** (x86) | **`t3.medium`** (2 vCPU, 4 GiB) | **20 GiB** gp3 | Seleccionar **`visons-workers-sg`** |
 
 > 📌 **Detalles clave al crear cada instancia en la pantalla de AWS:**
 > 1. **Application and OS Images:** Elige el logo de **Ubuntu**, y en el desplegable verifica que diga **Ubuntu Server 22.04 LTS (HVM), SSD Volume Type** (64-bit x86).
@@ -138,7 +136,7 @@ Crea las **5 instancias** con la siguiente configuración:
 > 4. **Network settings (Configuración de red):** Haz clic en **Edit** (Editar):
 >    - **Auto-assign public IP:** Asegúrate de que esté en **Enable** (Habilitar) para tener IP pública.
 >    - **Firewall (security groups):** Marca la opción **"Select existing security group"** (Seleccionar grupo de seguridad existente).
->    - Para el Master marca `sg-visons-master`. Para los 4 Workers marca `sg-visons-workers`.
+>    - Para el Master marca `visons-master-sg`. Para los 4 Workers marca `visons-workers-sg`.
 > 5. **Configure storage (Almacenamiento):** Cambia el tamaño de `8 GiB` a **`20 GiB`** tipo **gp3**.
 > 6. Haz clic en **Launch instance** (Lanzar instancia).
 
@@ -368,7 +366,7 @@ Configura los campos exactamente así:
    - **Public access (Acceso público):** Marca **No** (las EC2 acceden internamente por la VPC).
    - **VPC security group (firewall):** Marca **"Choose existing"** (Elegir existentes):
      - Quita el grupo `default` de la lista.
-     - Selecciona **únicamente `sg-visons-rds`**.
+     - Selecciona **únicamente `visons-rds-sg`**.
 8. Haz clic abajo en el botón naranja **Create database**.
 
 > ⏳ **Tiempo de espera:** La base de datos tardará entre 5 y 10 minutos en crearse.  
