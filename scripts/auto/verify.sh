@@ -70,8 +70,9 @@ TOKEN_RESP=$(curl -s -m 15 -X POST http://localhost:30090/api/v1/auth/login -H '
 check "Login JWT correcto (lee MongoDB)" "respuesta: ${TOKEN_RESP:0:120}  → ¿seed de Mongo? ¿URI de Mongo en el Secret?" login_ok
 KPIS=$(curl -s -m 15 http://localhost:30500/api/v1/analytics/dashboard/kpis)
 TOKEN="$(api_login)"; SQL_BAD=""
+sql_endpoints_ok || true
 check "Endpoints que usan SQL Server responden 200 (orders, batches, invoices, payments, shipments…)" \
-  "fallan:${SQL_BAD:- (sin token de login)} → ejecuta  bash diagnose.sh  para ver la causa exacta" sql_endpoints_ok
+  "fallan:${SQL_BAD:- (fallo de conexión R2DBC)} → ejecuta  bash diagnose.sh  para ver la causa exacta" [ -z "$SQL_BAD" ]
 check "KPIs analíticos devuelven datos" "respuesta: ${KPIS:0:120}" kpis_ok
 check "Frontend responde HTTP 200 en :30080" "kubectl logs -n $NS deployment/frontend-web" front_ok
 check "index.html sin llave '}' de más (si no: SyntaxError catch without try)" "kubectl rollout restart deployment/frontend-web -n $NS" index_balanced
