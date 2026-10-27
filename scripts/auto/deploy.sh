@@ -14,12 +14,17 @@
 #    5. Despliega backends y frontend con los valores reales inyectados.
 #    6. Espera a que estén listos y llama a verify.sh.
 #
-#  Es IDEMPOTENTE: si la IP pública cambió (reinicio del lab) o quieres actualizar,
-#  vuelve a ejecutar  bash deploy.sh  y solo se reinician los pods que cambian.
+#  Es REPETIBLE: si la IP pública cambió (reinicio del lab) o quieres actualizar, vuelve a ejecutar
+#  bash deploy.sh  y solo se reinician los pods que cambian. NO borra tus datos (solo siembra si están
+#  vacías las bases). Opciones:  --reseed  reinicia a los datos semilla · --no-seed  no toca las bases.
 # =============================================================================
 set -euo pipefail
 . "$(dirname "${BASH_SOURCE[0]}")/lib.sh"
 load_config
+
+# Modo de siembra:  (por defecto) solo si la base está vacía · --reseed fuerza · --no-seed la omite
+SEED_MODE=auto
+for a in "$@"; do case "$a" in --reseed) SEED_MODE=always ;; --no-seed) SEED_MODE=never ;; esac; done
 
 REPO_DIR="${REPO_DIR:-}"
 [ -z "$REPO_DIR" ] && [ -d "$AUTO_DIR/../../k8s" ] && REPO_DIR="$(cd "$AUTO_DIR/../.." && pwd)"
@@ -108,17 +113,31 @@ retry 30 4 "${MONGO[@]}" --eval 'db.runCommand({ping:1}).ok' >/dev/null || die "
 ok "MongoDB listo"
 
 # ── 4. Seed de ambas bases ───────────────────────────────────────────────────
-step "4/6 Sembrando datos (RDS SQL Server + MongoDB) — scripts idempotentes"
-# -b = si el script SQL tiene un error, sqlcmd sale con código ≠ 0 y aquí nos enteramos (antes fallaba en silencio)
-if ! "${SQL[@]}" -b -i k8s/databases/init/Visons_sqlserver_completo.sql > "$STATE_DIR/seed-sql.log" 2>&1; then
-  tail -15 "$STATE_DIR/seed-sql.log"; die "Falló el script SQL (log completo: $STATE_DIR/seed-sql.log)"
+step "4/6 Datos iniciales (RDS SQL Server + MongoDB)"
+# OJO: los scripts de seed BORRAN y recrean los datos (SQL: DELETE FROM … · Mongo: drop() de cada colección).
+# Por eso, por defecto, solo se siembra si la base está vacía. Así repetir deploy.sh NO te borra tus cambios.
+sql_empty()   { local n; n=$("${SQL[@]}" -d "$RDS_DATABASE" -h -1 -W -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM ORDERS" 2>/dev/null | head -1 | tr -d '[:space:]'); [[ ! "$n" =~ ^[0-9]+$ ]] || [ "$n" -eq 0 ]; }
+mongo_empty() { local n; n=$("${MONGO[@]}" "$RDS_DATABASE" --eval 'db.users.countDocuments()' 2>/dev/null | tail -1 | tr -d '[:space:]'); [[ ! "$n" =~ ^[0-9]+$ ]] || [ "$n" -eq 0 ]; }
+
+if [ "$SEED_MODE" = always ] || { [ "$SEED_MODE" = auto ] && sql_empty; }; then
+  # -b = si el script SQL tiene un error, sqlcmd sale con código ≠ 0 y aquí nos enteramos
+  if ! "${SQL[@]}" -b -i k8s/databases/init/Visons_sqlserver_completo.sql > "$STATE_DIR/seed-sql.log" 2>&1; then
+    tail -15 "$STATE_DIR/seed-sql.log"; die "Falló el script SQL (log completo: $STATE_DIR/seed-sql.log)"
+  fi
+  NTABLES=$("${SQL[@]}" -d "$RDS_DATABASE" -h -1 -W -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE name <> 'schema_change'" | head -1 | tr -d '[:space:]')
+  ok "RDS sembrada: ${NTABLES} tablas de negocio en $RDS_DATABASE (esperado: 11)"
+else
+  info "RDS ya tiene datos → no se vuelve a sembrar (para reiniciar a los datos semilla:  bash deploy.sh --reseed)"
 fi
-NTABLES=$("${SQL[@]}" -d "$RDS_DATABASE" -h -1 -W -Q "SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE name <> 'schema_change'" | head -1 | tr -d '[:space:]')
-ok "RDS: ${NTABLES} tablas de negocio en la base $RDS_DATABASE (esperado: 11)"
-"${MONGO[@]}" "$RDS_DATABASE" < k8s/databases/init/Visons_mongodb_completo.js > "$STATE_DIR/seed-mongo.log" 2>&1 \
-  || { tail -15 "$STATE_DIR/seed-mongo.log"; die "Falló el script de MongoDB (log: $STATE_DIR/seed-mongo.log)"; }
-NCOLS=$("${MONGO[@]}" "$RDS_DATABASE" --eval 'db.getCollectionNames().length' | tail -1 | tr -d '[:space:]')
-ok "MongoDB: ${NCOLS} colecciones en $RDS_DATABASE"
+
+if [ "$SEED_MODE" = always ] || { [ "$SEED_MODE" = auto ] && mongo_empty; }; then
+  "${MONGO[@]}" "$RDS_DATABASE" < k8s/databases/init/Visons_mongodb_completo.js > "$STATE_DIR/seed-mongo.log" 2>&1 \
+    || { tail -15 "$STATE_DIR/seed-mongo.log"; die "Falló el script de MongoDB (log: $STATE_DIR/seed-mongo.log)"; }
+  NCOLS=$("${MONGO[@]}" "$RDS_DATABASE" --eval 'db.getCollectionNames().length' | tail -1 | tr -d '[:space:]')
+  ok "MongoDB sembrada: ${NCOLS} colecciones en $RDS_DATABASE (esperado: 17)"
+else
+  info "MongoDB ya tiene datos → no se vuelve a sembrar (para reiniciar:  bash deploy.sh --reseed)"
+fi
 
 # ── 5. Aplicaciones ──────────────────────────────────────────────────────────
 step "5/6 Backends y frontend (cada uno en su nodo dedicado)"

@@ -49,7 +49,7 @@ try: print(urllib.request.urlopen('http://backend-transaccional-service:9090/act
 except urllib.error.HTTPError as e: print(e.code)" 2>/dev/null | tail -1; }
 pod2pod_ok()    { [[ "$(pod2pod_code)" =~ ^(200|401|403)$ ]]; }
 rds_tables_ok() { [ "$("${SQLC[@]}" -d "$DB" -h -1 -W -Q "$SQL_COUNT_Q" | head -1 | tr -d '[:space:]')" = "11" ]; }
-mongo_cols_ok() { [ "$("${MONGO[@]}" "$DB" --eval 'db.getCollectionNames().length' | tail -1 | tr -d '[:space:]')" -ge 16 ]; }
+mongo_cols_ok() { [ "$("${MONGO[@]}" "$DB" --eval 'db.getCollectionNames().length' | tail -1 | tr -d '[:space:]')" -eq 17 ]; }
 
 step "A. Nodos y aislamiento (Criterio 1)"
 check "5 nodos Ready" "kubectl get nodes  → ¿falta un worker? ejecuta node.sh en él" nodes_ready
@@ -80,8 +80,8 @@ check "Frontend ya no apunta a localhost (usa $PUBLIC_IP)" "re-ejecuta bash depl
 step "C. Comunicación interna y bases de datos (Criterios 2 y 3)"
 check "DNS interno resuelve backend-analitico-service" "kubectl get svc -n $NS" dns_ok
 check "Backend 2 → Backend 1 por DNS interno (pod a pod)" "SG: debe haber 'All traffic' entre visons-workers-sg y sí mismo" pod2pod_ok
-check "RDS: 11 tablas de negocio" "bash deploy.sh vuelve a sembrar (es idempotente)" rds_tables_ok
-check "MongoDB: 16 colecciones o más" "bash deploy.sh vuelve a sembrar" mongo_cols_ok
+check "RDS: 11 tablas de negocio" "bash deploy.sh --reseed (reinicia las bases a los datos semilla)" rds_tables_ok
+check "MongoDB: 17 colecciones" "bash deploy.sh --reseed (reinicia las bases a los datos semilla)" mongo_cols_ok
 
 step "D. Errores recientes en logs (aviso, no falla)"
 for d in backend-transaccional backend-analitico; do

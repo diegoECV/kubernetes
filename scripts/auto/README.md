@@ -23,7 +23,7 @@ el token de `kubeadm join`, el endpoint de la RDS y configuran los manifiestos.
 |---|---|
 | `config.env.example` | Variables. Cópialo a `config.env` y pon `RDS_PASSWORD` (no se sube a git). |
 | `node.sh` | Prepara cada nodo y lo une al clúster (Pasos 2.2, 3, 4 y 5 del manual). Autocontenido. |
-| `deploy.sh` | Despliega todo en el master (Pasos 6.2 y 7). **Re-ejecutable** para actualizar. |
+| `deploy.sh` | Despliega todo en el master (Pasos 6.2 y 7). **Re-ejecutable**; solo siembra si las bases están vacías (`--reseed` fuerza, `--no-seed` omite). |
 | `verify.sh` | Pruebas reales + evidencias (Pasos 7.6 y 8). Lo llama `deploy.sh`. |
 | `diagnose.sh` | Busca la causa exacta de errores 500, CORS y "restaurar" (solo lee). |
 | `render.py` | Inyecta IPs/claves en los manifiestos **sin editar tus archivos** (lo usa `deploy.sh`). |
@@ -82,7 +82,8 @@ bash provision-aws.sh      # SGs + 5 EC2 (se instalan solas) + RDS
 ## Actualizar / reparar (lo que antes era "quería actualizarlo pero nada")
 | Situación | Qué hacer |
 |---|---|
-| El lab se reinició y **cambió la IP pública** | En el master: `bash deploy.sh` (reinyecta la IP y reinicia solo lo que cambió) |
+| El lab se reinició y **cambió la IP pública** | En el master: `bash deploy.sh` (reinyecta la IP, reinicia solo lo que cambió y conserva tus datos) |
+| Volver a los datos de ejemplo | `bash deploy.sh --reseed` (**borra** lo que hayas cambiado) |
 | Cambiaste una clave o variable | Edita `config.env` → `bash deploy.sh` |
 | Quieres ver qué falla | `bash verify.sh` (te dice qué capa y qué comando mirar) |
 | Recreaste la RDS (otro endpoint) | `rm ~/.visons/state.env` → `bash deploy.sh` |
