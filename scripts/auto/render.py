@@ -29,7 +29,7 @@ JWT = E("JWT_SECRET")
 mongo_uri = f"mongodb://{quote(MONGO_USER, safe='')}:{quote(MONGO_PASS, safe='')}@mongodb-service:27017/{RDS_DB}?authSource=admin"
 
 CONFIG = {
-    "SPRING_R2DBC_URL": f"r2dbc:mssql://{RDS_ENDPOINT}:1433/{RDS_DB}",
+    "SPRING_R2DBC_URL": f"r2dbc:mssql://{quote(RDS_USER, safe='')}:{quote(RDS_PASSWORD, safe='')}@{RDS_ENDPOINT}:1433/{RDS_DB}?trustServerCertificate=true",
     "SPRING_R2DBC_USERNAME": RDS_USER,
     "FRONTEND_URL": f"http://{PUBLIC_IP}:30080",
     "SQL_SERVER": RDS_ENDPOINT,
@@ -51,14 +51,22 @@ if JWT:
 # Hash de la configuración: si cambia, los Deployments se reinician solos.
 CFG_HASH = hashlib.sha256(json.dumps([CONFIG, SECRETS], sort_keys=True).encode()).hexdigest()[:16]
 
-# Comando postStart del frontend: reemplaza las URLs/IPs viejas del bundle JS por la IP pública actual.
-# Vive en el Deployment, así sobrevive a reinicios del pod (antes se perdía con el 'kubectl exec sed').
+# Comando postStart del frontend:
+# 1. Reemplaza URLs e IPs viejas por la IP pública actual y asegura PUT en restaurar cliente.
+# 2. Asegura que index.html tenga las llaves balanceadas (evita SyntaxError: catch without try).
 FRONT_CMD = (
     "sed -i "
     f"'s|http://localhost:9090|http://{PUBLIC_IP}:30090|g; "
     f"s|http://localhost:5000|http://{PUBLIC_IP}:30500|g; "
-    f"s|34.228.12.107|{PUBLIC_IP}|g; s|54.234.91.155|{PUBLIC_IP}|g; s|52.73.219.160|{PUBLIC_IP}|g' "
-    "/usr/share/nginx/html/assets/*.js"
+    f"s|34.228.12.107|{PUBLIC_IP}|g; s|54.234.91.155|{PUBLIC_IP}|g; s|52.73.219.160|{PUBLIC_IP}|g; "
+    "s|\\.patch(\\([^)]*restore\\)|\\.put(\\1|g' "
+    "/usr/share/nginx/html/assets/*.js 2>/dev/null || true; "
+    "sed -i "
+    "'s|classList.add(\"dark\");[[:space:]]*}|classList.add(\"dark\");|g; "
+    "s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g; "
+    "s|classList.add(\"dark\");|classList.add(\"dark\"); }|g; "
+    "s|classList.add(\x27dark\x27);|classList.add(\x27dark\x27); }|g' "
+    "/usr/share/nginx/html/index.html 2>/dev/null || true"
 )
 
 def patch(obj):

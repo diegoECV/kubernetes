@@ -149,10 +149,10 @@ for d in backend-transaccional backend-analitico frontend-web; do
   kubectl rollout status deployment/$d -n "$NS" --timeout=300s || warn "$d tarda; mira: kubectl logs -n $NS deployment/$d --tail=50"
 done
 
-# Si un parche viejo dejó una '}' de más en index.html, un pod nuevo (imagen limpia) lo arregla
+# Asegurar que index.html tenga las llaves balanceadas (evita SyntaxError: catch without try)
 if ! index_balanced; then
-  warn "index.html tiene una llave de más (parche viejo). Reiniciando el frontend para restaurar la imagen limpia…"
-  kubectl rollout restart deployment/frontend-web -n "$NS" && kubectl rollout status deployment/frontend-web -n "$NS" --timeout=180s
+  info "Alineando llaves de index.html en frontend-web..."
+  kubectl exec -n "$NS" deployment/frontend-web -- sh -c "sed -i 's|classList.add(\"dark\");[[:space:]]*}|classList.add(\"dark\");|g; s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g; s|classList.add(\"dark\");|classList.add(\"dark\"); }|g; s|classList.add(\x27dark\x27);|classList.add(\x27dark\x27); }|g' /usr/share/nginx/html/index.html" 2>/dev/null || true
 fi
 
 # ── 6. Verificación ──────────────────────────────────────────────────────────
