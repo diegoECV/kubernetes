@@ -29,7 +29,7 @@ JWT = E("JWT_SECRET")
 mongo_uri = f"mongodb://{quote(MONGO_USER, safe='')}:{quote(MONGO_PASS, safe='')}@mongodb-service:27017/{RDS_DB}?authSource=admin"
 
 CONFIG = {
-    "SPRING_R2DBC_URL": f"r2dbc:mssql://{RDS_ENDPOINT}:1433/{RDS_DB}?trustServerCertificate=true",
+    "SPRING_R2DBC_URL": f"r2dbc:mssql://{RDS_ENDPOINT}:1433/{RDS_DB}?ssl=true&trustServerCertificate=true",
     "SPRING_R2DBC_USERNAME": RDS_USER,
     "JAVA_TOOL_OPTIONS": "-Dio.netty.allocator.type=pooled",
     "FRONTEND_URL": f"http://{PUBLIC_IP}:30080",
