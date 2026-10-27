@@ -25,6 +25,7 @@ el token de `kubeadm join`, el endpoint de la RDS y configuran los manifiestos.
 | `node.sh` | Prepara cada nodo y lo une al clúster (Pasos 2.2, 3, 4 y 5 del manual). Autocontenido. |
 | `deploy.sh` | Despliega todo en el master (Pasos 6.2 y 7). **Re-ejecutable** para actualizar. |
 | `verify.sh` | Pruebas reales + evidencias (Pasos 7.6 y 8). Lo llama `deploy.sh`. |
+| `diagnose.sh` | Busca la causa exacta de errores 500, CORS y "restaurar" (solo lee). |
 | `render.py` | Inyecta IPs/claves en los manifiestos **sin editar tus archivos** (lo usa `deploy.sh`). |
 | `lib.sh` | Funciones comunes (IMDS, config, reintentos). |
 | `provision-aws.sh` | *Opcional*: crea SGs + EC2 + RDS con AWS CLI en vez de clics. |

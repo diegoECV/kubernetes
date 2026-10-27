@@ -130,6 +130,12 @@ for d in backend-transaccional backend-analitico frontend-web; do
   kubectl rollout status deployment/$d -n "$NS" --timeout=300s || warn "$d tarda; mira: kubectl logs -n $NS deployment/$d --tail=50"
 done
 
+# Si un parche viejo dejó una '}' de más en index.html, un pod nuevo (imagen limpia) lo arregla
+if ! index_balanced; then
+  warn "index.html tiene una llave de más (parche viejo). Reiniciando el frontend para restaurar la imagen limpia…"
+  kubectl rollout restart deployment/frontend-web -n "$NS" && kubectl rollout status deployment/frontend-web -n "$NS" --timeout=180s
+fi
+
 # ── 6. Verificación ──────────────────────────────────────────────────────────
 step "6/6 Verificación automática"
 bash "$AUTO_DIR/verify.sh"

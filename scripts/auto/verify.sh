@@ -30,13 +30,24 @@ SQL_COUNT_Q="SET NOCOUNT ON; SELECT COUNT(*) FROM sys.tables WHERE name <> 'sche
 # ── funciones de prueba (usar funciones evita líos de comillas con bash -c) ──
 nodes_ready()   { [ "$(kubectl get nodes --no-headers | grep -c ' Ready')" -ge 5 ]; }
 pod_running()   { kubectl get pod -n "$NS" -l app="$1" -o jsonpath='{.items[0].status.phase}' | grep -q Running; }
-health_b1()     { curl -fsS -m 10 http://localhost:30090/actuator/health | grep -q '"status":"UP"'; }
+backend_alive() { [[ "$(curl -s -m 10 -o /dev/null -w '%{http_code}' http://localhost:30090/actuator/health)" =~ ^(200|401|403)$ ]]; }   # 401 = vivo, el health pide token
+sql_endpoints_ok() {   # llama a los endpoints que dependen de SQL Server con el JWT
+  [ -n "$TOKEN" ] || return 1
+  local bad="" e c
+  for e in orders order-details batches invoices payments shipments customs-declarations audit-logs; do
+    c=$(api_code "$TOKEN" "/api/v1/$e"); [[ "$c" =~ ^2 ]] || bad="$bad $e($c)"
+  done
+  [ -z "$bad" ] || { SQL_BAD="$bad"; return 1; }
+}
 login_ok()      { echo "$TOKEN_RESP" | grep -qi token; }
 kpis_ok()       { echo "$KPIS" | grep -q total_inspecciones; }
 front_ok()      { curl -fsS -m 10 -o /dev/null http://localhost:30080/; }
 front_no_local(){ ! kubectl exec -n "$NS" deployment/frontend-web -- sh -c 'grep -lE "localhost:(9090|5000)" /usr/share/nginx/html/assets/*.js' 2>/dev/null | grep -q .; }
 dns_ok()        { kubectl run "dns-test-$$" -n "$NS" --rm -i --restart=Never --image=busybox:1.36 -- nslookup backend-analitico-service; }
-pod2pod_ok()    { kubectl exec -n "$NS" deployment/backend-analitico -- python3 -c "import urllib.request;print(urllib.request.urlopen('http://backend-transaccional-service:9090/actuator/health',timeout=8).read().decode())" | grep -q UP; }
+pod2pod_code()  { kubectl exec -n "$NS" deployment/backend-analitico -- python3 -c "import urllib.request,urllib.error
+try: print(urllib.request.urlopen('http://backend-transaccional-service:9090/actuator/health',timeout=8).status)
+except urllib.error.HTTPError as e: print(e.code)" 2>/dev/null | tail -1; }
+pod2pod_ok()    { [[ "$(pod2pod_code)" =~ ^(200|401|403)$ ]]; }
 rds_tables_ok() { [ "$("${SQLC[@]}" -d "$DB" -h -1 -W -Q "$SQL_COUNT_Q" | head -1 | tr -d '[:space:]')" = "11" ]; }
 mongo_cols_ok() { [ "$("${MONGO[@]}" "$DB" --eval 'db.getCollectionNames().length' | tail -1 | tr -d '[:space:]')" -ge 16 ]; }
 
@@ -51,15 +62,19 @@ for pair in frontend-web:frontend backend-transaccional:backend1 backend-analiti
 done
 
 step "B. Servicios de verdad (no solo 'Running')"
-check "Backend 1 /actuator/health = UP (incluye RDS y Mongo)" \
-  "kubectl logs -n $NS deployment/backend-transaccional --tail=60  → busca 'Login failed', 'refused', 'timeout'" health_b1
+check "Backend 1 responde (HTTP 200/401: el health está protegido y pide token)" \
+  "kubectl logs -n $NS deployment/backend-transaccional --tail=60" backend_alive
 check "Backend 2 /health responde" "kubectl logs -n $NS deployment/backend-analitico --tail=60" curl -fsS -m 10 http://localhost:30500/health
 TOKEN_RESP=$(curl -s -m 15 -X POST http://localhost:30090/api/v1/auth/login -H 'Content-Type: application/json' \
   -d "{\"username\":\"${APP_USER}\",\"password\":\"${APP_PASSWORD}\"}")
 check "Login JWT correcto (lee MongoDB)" "respuesta: ${TOKEN_RESP:0:120}  → ¿seed de Mongo? ¿URI de Mongo en el Secret?" login_ok
 KPIS=$(curl -s -m 15 http://localhost:30500/api/v1/analytics/dashboard/kpis)
+TOKEN="$(api_login)"; SQL_BAD=""
+check "Endpoints que usan SQL Server responden 200 (orders, batches, invoices, payments, shipments…)" \
+  "fallan:${SQL_BAD:- (sin token de login)} → ejecuta  bash diagnose.sh  para ver la causa exacta" sql_endpoints_ok
 check "KPIs analíticos devuelven datos" "respuesta: ${KPIS:0:120}" kpis_ok
 check "Frontend responde HTTP 200 en :30080" "kubectl logs -n $NS deployment/frontend-web" front_ok
+check "index.html sin llave '}' de más (si no: SyntaxError catch without try)" "kubectl rollout restart deployment/frontend-web -n $NS" index_balanced
 check "Frontend ya no apunta a localhost (usa $PUBLIC_IP)" "re-ejecuta bash deploy.sh (el hook postStart reinyecta la IP)" front_no_local
 
 step "C. Comunicación interna y bases de datos (Criterios 2 y 3)"
@@ -80,7 +95,7 @@ step "📸 EVIDENCIAS PARA CAPTURAR (en este orden)"
 echo -e "${BOLD}Criterio 1 — nodos y etiquetas${NC}";   kubectl get nodes --show-labels | sed 's/beta.kubernetes.io[^,]*,//g;s/kubernetes.io\/[a-z]*=[^,]*,//g' | cut -c1-200
 echo -e "\n${BOLD}Criterio 1 — pods en sus workers${NC}"; kubectl get pods -n "$NS" -o wide
 echo -e "\n${BOLD}Criterio 2 — pod a pod (DNS interno)${NC}"
-kubectl exec -n "$NS" deployment/backend-analitico -- python3 -c "import urllib.request;print('Respuesta Backend1:',urllib.request.urlopen('http://backend-transaccional-service:9090/actuator/health',timeout=8).read().decode())" 2>&1 | cut -c1-200
+echo "Respuesta Backend1: HTTP $(pod2pod_code)  (200/401 = el backend 1 contestó desde el pod del backend 2 por DNS interno)"
 echo -e "\n${BOLD}Criterio 3 — tablas en RDS${NC}"
 "${SQLC[@]}" -d "${RDS_DATABASE:-Visons}" -Q "SELECT t.name AS Tabla, p.rows AS Total_Filas FROM sys.tables t JOIN sys.partitions p ON t.object_id=p.object_id WHERE p.index_id IN (0,1) AND t.name <> 'schema_change' ORDER BY t.name;" 2>&1
 echo -e "\n${BOLD}Criterio 4 — endpoints${NC}"

@@ -69,3 +69,30 @@ role_of_node() {
     *) echo "" ;;
   esac
 }
+
+
+# ── Frontend: ¿las llaves { } del <script> inline de index.html están balanceadas? ──
+# (un 'sed' viejo del manual agregaba una '}' de más → "SyntaxError: catch without try")
+index_balanced() {
+  local inline o c
+  inline=$(curl -fsS -m 10 "http://localhost:30080/" 2>/dev/null | sed -n '/<script>/,/<\/script>/p') || return 0
+  [ -z "$inline" ] && return 0
+  o=$(printf '%s' "$inline" | tr -cd '{' | wc -c); c=$(printf '%s' "$inline" | tr -cd '}' | wc -c)
+  [ "$o" -eq "$c" ]
+}
+
+# ── API: login y llamadas autenticadas (el /actuator/health y los /api/v1/* piden token) ──
+api_login() {   # imprime el JWT o nada
+  curl -s -m 15 -X POST http://localhost:30090/api/v1/auth/login -H 'Content-Type: application/json' \
+    -d "{\"username\":\"${APP_USER}\",\"password\":\"${APP_PASSWORD}\"}" \
+  | python3 -c 'import sys,json
+try:
+    d=json.load(sys.stdin)
+    for k in ("token","accessToken","access_token","jwt"):
+        if d.get(k): print(d[k]); break
+        if isinstance(d.get("data"),dict) and d["data"].get(k): print(d["data"][k]); break
+except Exception: pass' 2>/dev/null
+}
+api_code() {    # api_code TOKEN /ruta → código HTTP
+  curl -s -m 15 -o /dev/null -w '%{http_code}' -H "Authorization: Bearer $1" "http://localhost:30090$2"
+}
