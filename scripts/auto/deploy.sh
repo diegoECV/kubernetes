@@ -152,7 +152,7 @@ done
 # Asegurar que index.html tenga las llaves balanceadas (evita SyntaxError: catch without try)
 if ! index_balanced; then
   info "Alineando llaves de index.html en frontend-web..."
-  kubectl exec -n "$NS" deployment/frontend-web -- sh -c "sed -i 's|classList.add(\"dark\");[[:space:]]*}|classList.add(\"dark\");|g; s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g; s|classList.add(\"dark\");|classList.add(\"dark\"); }|g; s|classList.add(\x27dark\x27);|classList.add(\x27dark\x27); }|g' /usr/share/nginx/html/index.html" 2>/dev/null || true
+  kubectl exec -n "$NS" deployment/frontend-web -- sed -i "s|classList.add.*|classList.add('dark'); }|g" /usr/share/nginx/html/index.html 2>/dev/null || true
 fi
 
 # ── 6. Verificación ──────────────────────────────────────────────────────────

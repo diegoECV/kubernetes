@@ -18,7 +18,7 @@ data:
   SPRING_R2DBC_USERNAME: "sa"
   FRONTEND_URL: "http://52.73.219.160:30080"
   JWT_EXPIRATION_MS: "36000000"
-  JAVA_TOOL_OPTIONS: "-Dio.netty.allocator.type=pooled"
+  JAVA_TOOL_OPTIONS: "-Dio.netty.allocator.type=pooled -Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE"
 
   # Exposición de Actuator y Métricas de Prometheus
   MANAGEMENT_ENDPOINTS_WEB_EXPOSURE_INCLUDE: "health,info,prometheus,metrics"

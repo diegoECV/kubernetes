@@ -62,11 +62,7 @@ FRONT_CMD = (
     f"s|34.228.12.107|{PUBLIC_IP}|g; s|54.234.91.155|{PUBLIC_IP}|g; s|52.73.219.160|{PUBLIC_IP}|g; "
     "s|\\.patch(\\([^)]*restore\\)|\\.put(\\1|g' "
     "/usr/share/nginx/html/assets/*.js 2>/dev/null || true; "
-    "sed -i "
-    "'s|classList.add(\"dark\");[[:space:]]*}|classList.add(\"dark\");|g; "
-    "s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g; "
-    "s|classList.add(\"dark\");|classList.add(\"dark\"); }|g; "
-    "s|classList.add(\x27dark\x27);|classList.add(\x27dark\x27); }|g' "
+    'sed -i "s|classList.add.*|classList.add(\'dark\'); }|g" '
     "/usr/share/nginx/html/index.html 2>/dev/null || true"
 )
 
