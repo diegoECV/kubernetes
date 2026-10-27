@@ -64,9 +64,7 @@ FRONT_CMD = (
     "/usr/share/nginx/html/assets/*.js 2>/dev/null || true; "
     "sed -i "
     "'s|classList.add(\"dark\");[[:space:]]*}|classList.add(\"dark\");|g; "
-    "s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g; "
-    "s|classList.add(\"dark\");|classList.add(\"dark\"); }|g; "
-    "s|classList.add(\x27dark\x27);|classList.add(\x27dark\x27); }|g' "
+    "s|classList.add(\x27dark\x27);[[:space:]]*}|classList.add(\x27dark\x27);|g' "
     "/usr/share/nginx/html/index.html 2>/dev/null || true"
 )
 
