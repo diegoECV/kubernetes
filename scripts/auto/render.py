@@ -29,8 +29,9 @@ JWT = E("JWT_SECRET")
 mongo_uri = f"mongodb://{quote(MONGO_USER, safe='')}:{quote(MONGO_PASS, safe='')}@mongodb-service:27017/{RDS_DB}?authSource=admin"
 
 CONFIG = {
-    "SPRING_R2DBC_URL": f"r2dbc:mssql://{quote(RDS_USER, safe='')}:{quote(RDS_PASSWORD, safe='')}@{RDS_ENDPOINT}:1433/{RDS_DB}?trustServerCertificate=true",
+    "SPRING_R2DBC_URL": f"r2dbc:mssql://{RDS_ENDPOINT}:1433/{RDS_DB}?trustServerCertificate=true",
     "SPRING_R2DBC_USERNAME": RDS_USER,
+    "JAVA_TOOL_OPTIONS": "-Dio.netty.allocator.type=pooled",
     "FRONTEND_URL": f"http://{PUBLIC_IP}:30080",
     "SQL_SERVER": RDS_ENDPOINT,
     "SQL_DATABASE": RDS_DB,
@@ -83,6 +84,12 @@ def patch(obj):
                 if c["name"] == "frontend-web":
                     c.setdefault("lifecycle", {})["postStart"] = {
                         "exec": {"command": ["/bin/sh", "-c", FRONT_CMD]}}
+        elif name == "backend-transaccional":
+            for c in tpl["spec"]["containers"]:
+                if c["name"] == "backend-transaccional":
+                    c.setdefault("env", [])
+                    c["env"] = [e for e in c["env"] if e.get("name") != "JAVA_TOOL_OPTIONS"]
+                    c["env"].append({"name": "JAVA_TOOL_OPTIONS", "value": "-Dio.netty.allocator.type=pooled"})
     return obj
 
 def keep(obj):

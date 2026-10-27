@@ -20,8 +20,10 @@ step "A. Configuración que usa el pod del Backend 1"
 POD_URL=$(kubectl exec -n "$NS" deployment/backend-transaccional -- printenv SPRING_R2DBC_URL 2>/dev/null)
 POD_USER=$(kubectl exec -n "$NS" deployment/backend-transaccional -- printenv SPRING_R2DBC_USERNAME 2>/dev/null)
 POD_PASS=$(kubectl exec -n "$NS" deployment/backend-transaccional -- printenv SPRING_R2DBC_PASSWORD 2>/dev/null)
+POD_OPTS=$(kubectl exec -n "$NS" deployment/backend-transaccional -- printenv JAVA_TOOL_OPTIONS 2>/dev/null)
 echo "  URL del pod : ${POD_URL:-<no se pudo leer>}"
 echo "  Usuario     : ${POD_USER:-?}"
+echo "  JVM Options : ${POD_OPTS:-<no definido>}"
 if [ -n "${POD_URL:-}" ] && [[ "$POD_URL" == *"${RDS_ENDPOINT:-@@}"* ]]; then ok "El endpoint del pod coincide con tu RDS"
 else warn "El endpoint del pod NO coincide con la RDS ($RDS_ENDPOINT) → ejecuta  bash deploy.sh"; v "Config: el pod apunta a otro endpoint. Solución: bash deploy.sh"; fi
 if [ "$POD_PASS" = "${RDS_PASSWORD:-}" ] && [ -n "$POD_PASS" ]; then ok "La clave del pod es igual a RDS_PASSWORD de config.env"
@@ -70,7 +72,9 @@ echo "$LOGS" | grep -qiE "invalid object name"                 && v "LOG: 'Inval
 echo "$LOGS" | grep -qiE "invalid column name"                 && v "LOG: 'Invalid column name' → la tabla existe pero el backend espera otra columna: el esquema del SQL del repo y la imagen del backend no son de la misma versión."
 echo "$LOGS" | grep -qiE "cannot open database"                && v "LOG: 'Cannot open database' → la base $DB no existe o el usuario no tiene acceso. Solución: bash deploy.sh (la crea y siembra)."
 echo "$LOGS" | grep -qiE "timed out|timeout|connection refused|unknownhost" && v "LOG: timeouts/conexión rechazada → es de red/Security Group (mira la sección B)."
-echo "$LOGS" | grep -qiE "pkix|certificate|ssl handshake"      && v "LOG: error de certificado/SSL → el driver rechaza el TLS de la RDS. Solución: parámetro de TLS en la URL R2DBC (dímelo y lo agregamos)."
+echo "$LOGS" | grep -qiE "The label in the input is too long"      && v "LOG: 'The label in the input is too long' → La URL R2DBC tiene formato JDBC (con punto y coma ';'). R2DBC exige formato URI RFC 3986 con '/' antes de la base y '?' para opciones: r2dbc:mssql://HOST:1433/Visons?trustServerCertificate=true"
+echo "$LOGS" | grep -qiE "Connection closed|IllegalReferenceCount" && v "LOG: 'Connection closed' / Netty 4.2 → Falta configurar el asignador clásico de Netty para TLS con RDS SQL Server. Solución: JAVA_TOOL_OPTIONS='-Dio.netty.allocator.type=pooled'."
+echo "$LOGS" | grep -qiE "pkix|certificate|ssl handshake"         && v "LOG: error de certificado/SSL → el driver rechaza el TLS de la RDS. Solución: parámetro de TLS en la URL R2DBC (dímelo y lo agregamos)."
 
 # ── E. CORS y 'Restaurar cliente' ─────────────────────────────────────────────
 step "E. CORS y botón Restaurar/Eliminar cliente (preflight OPTIONS, no ejecuta nada)"
