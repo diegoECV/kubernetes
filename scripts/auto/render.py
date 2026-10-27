@@ -31,7 +31,7 @@ mongo_uri = f"mongodb://{quote(MONGO_USER, safe='')}:{quote(MONGO_PASS, safe='')
 CONFIG = {
     "SPRING_R2DBC_URL": f"r2dbc:mssql://{RDS_ENDPOINT}:1433/{RDS_DB}?ssl=true&trustServerCertificate=true",
     "SPRING_R2DBC_USERNAME": RDS_USER,
-    "JAVA_TOOL_OPTIONS": "-Dio.netty.allocator.type=pooled",
+    "JAVA_TOOL_OPTIONS": "-Dio.netty.allocator.type=pooled -Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE",
     "FRONTEND_URL": f"http://{PUBLIC_IP}:30080",
     "SQL_SERVER": RDS_ENDPOINT,
     "SQL_DATABASE": RDS_DB,
@@ -89,7 +89,7 @@ def patch(obj):
                 if c["name"] == "backend-transaccional":
                     c.setdefault("env", [])
                     c["env"] = [e for e in c["env"] if e.get("name") != "JAVA_TOOL_OPTIONS"]
-                    c["env"].append({"name": "JAVA_TOOL_OPTIONS", "value": "-Dio.netty.allocator.type=pooled"})
+                    c["env"].append({"name": "JAVA_TOOL_OPTIONS", "value": "-Dio.netty.allocator.type=pooled -Dio.netty.handler.ssl.defaultEndpointVerificationAlgorithm=NONE"})
     return obj
 
 def keep(obj):
